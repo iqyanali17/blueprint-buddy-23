@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Stethoscope, User, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { MessageCircle, Stethoscope, User, Menu, X, LogOut } from 'lucide-react';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useAuth } from '@/hooks/useAuth';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut, loading } = useAuth();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -50,14 +52,44 @@ const Header = () => {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
-              <User className="h-4 w-4 mr-2" />
-              Sign In
-            </Button>
-            <Button variant="hero" size="sm">
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Start Chat
-            </Button>
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-medical" />
+                  <span className="text-sm font-medium">
+                    {user.user_metadata?.full_name || user.email}
+                  </span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={signOut} disabled={loading}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+                <Button variant="hero" size="sm">
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  My Chats
+                </Button>
+              </div>
+            ) : (
+              <>
+                <AuthModal 
+                  trigger={
+                    <Button variant="ghost" size="sm">
+                      <User className="h-4 w-4 mr-2" />
+                      Sign In
+                    </Button>
+                  } 
+                />
+                <AuthModal 
+                  trigger={
+                    <Button variant="hero" size="sm">
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Start Chat
+                    </Button>
+                  }
+                  defaultTab="signup"
+                />
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -109,14 +141,44 @@ const Header = () => {
                 Contact
               </a>
               <div className="flex flex-col space-y-2 pt-4 border-t">
-                <Button variant="ghost" size="sm">
-                  <User className="h-4 w-4 mr-2" />
-                  Sign In
-                </Button>
-                <Button variant="hero" size="sm">
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Start Chat
-                </Button>
+                {user ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2 px-2 py-1">
+                      <User className="h-4 w-4 text-medical" />
+                      <span className="text-sm font-medium">
+                        {user.user_metadata?.full_name || user.email}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={signOut} disabled={loading}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </Button>
+                    <Button variant="hero" size="sm">
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      My Chats
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <AuthModal 
+                      trigger={
+                        <Button variant="ghost" size="sm">
+                          <User className="h-4 w-4 mr-2" />
+                          Sign In
+                        </Button>
+                      } 
+                    />
+                    <AuthModal 
+                      trigger={
+                        <Button variant="hero" size="sm">
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Start Chat
+                        </Button>
+                      }
+                      defaultTab="signup"
+                    />
+                  </>
+                )}
               </div>
             </nav>
           </div>
