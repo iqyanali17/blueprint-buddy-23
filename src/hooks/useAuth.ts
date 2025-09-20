@@ -46,6 +46,8 @@ export const useAuth = () => {
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       setLoading(true);
+      console.log('Attempting sign up with:', { email, fullName });
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -56,6 +58,7 @@ export const useAuth = () => {
         }
       });
 
+      console.log('Sign up result:', { data, error });
       if (error) throw error;
 
       if (data.user && !data.user.email_confirmed_at) {
@@ -81,11 +84,14 @@ export const useAuth = () => {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      console.log('Attempting sign in with:', { email });
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('Sign in result:', { data, error });
       if (error) throw error;
       return { data, error: null };
     } catch (error: any) {

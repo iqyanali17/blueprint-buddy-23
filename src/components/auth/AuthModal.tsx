@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,9 +58,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-medical" />
+            <Shield className="h-5 w-5 text-primary" />
             MEDITALK Access
           </DialogTitle>
+          <DialogDescription>
+            Sign in to your MEDITALK account or create a new one to access your medical assistant.
+          </DialogDescription>
         </DialogHeader>
         
         <Tabs defaultValue={defaultTab} className="w-full">
