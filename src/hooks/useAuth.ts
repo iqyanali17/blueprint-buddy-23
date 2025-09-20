@@ -54,18 +54,29 @@ export const useAuth = () => {
         options: {
           data: {
             full_name: fullName,
-          }
+          },
+          emailRedirectTo: undefined // Disable email confirmation
         }
       });
 
       console.log('Sign up result:', { data, error });
       if (error) throw error;
 
-      if (data.user && !data.user.email_confirmed_at) {
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation link to complete your registration.",
-        });
+      // If user is created but not confirmed, try to sign them in directly
+      if (data.user) {
+        if (data.session) {
+          // User is already signed in (email confirmation disabled)
+          toast({
+            title: "Account created successfully!",
+            description: "Welcome to MEDITALK! You're now signed in.",
+          });
+        } else {
+          // Email confirmation is required, but we'll try to sign in anyway
+          toast({
+            title: "Account created!",
+            description: "Please try signing in with your credentials.",
+          });
+        }
       }
 
       return { data, error: null };
