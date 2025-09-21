@@ -8,11 +8,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { toast } from '@/hooks/use-toast';
+import SymptomChecker from './SymptomChecker';
+import MedicationTracker from './MedicationTracker';
+import EmergencyGuide from './EmergencyGuide';
 
 const ChatInterface = () => {
   const { user } = useAuth();
   const { messages, currentSession, sessions, loading, createSession, sendMessage, setCurrentSession } = useChat();
   const [inputMessage, setInputMessage] = useState('');
+  const [currentView, setCurrentView] = useState<'chat' | 'symptoms' | 'medications' | 'emergency'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -46,6 +50,27 @@ const ChatInterface = () => {
   const handleStartNewChat = async () => {
     if (!user) return;
     await createSession('New Consultation');
+    setCurrentView('chat');
+  };
+
+  const handleQuickAction = (type: 'symptoms' | 'medications' | 'emergency') => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to access this feature.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCurrentView(type);
+  };
+
+  const handleSymptomComplete = async (assessment: string) => {
+    if (!currentSession) {
+      await createSession('Symptom Assessment');
+    }
+    await sendMessage(assessment);
+    setCurrentView('chat');
   };
 
   // Demo messages for non-authenticated users
@@ -59,6 +84,78 @@ const ChatInterface = () => {
   ];
 
   const displayMessages = user ? messages : demoMessages;
+
+  if (currentView === 'symptoms') {
+    return (
+      <section id="chat" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 border-medical text-medical">
+              Symptom Checker
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">Check Your Symptoms</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Help us understand your symptoms for personalized medical guidance.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto mb-6">
+            <Button onClick={() => setCurrentView('chat')} variant="outline">
+              ← Back to Chat
+            </Button>
+          </div>
+          <SymptomChecker onComplete={handleSymptomComplete} />
+        </div>
+      </section>
+    );
+  }
+
+  if (currentView === 'medications') {
+    return (
+      <section id="chat" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 border-healing text-healing">
+              Medication Tracker
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">Manage Your Medications</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Track your medications and set up reminders.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto mb-6">
+            <Button onClick={() => setCurrentView('chat')} variant="outline">
+              ← Back to Chat
+            </Button>
+          </div>
+          <MedicationTracker />
+        </div>
+      </section>
+    );
+  }
+
+  if (currentView === 'emergency') {
+    return (
+      <section id="chat" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 border-emergency text-emergency">
+              Emergency Guide
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">Emergency Medical Guide</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Quick reference for medical emergencies and important contacts.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto mb-6">
+            <Button onClick={() => setCurrentView('chat')} variant="outline">
+              ← Back to Chat
+            </Button>
+          </div>
+          <EmergencyGuide />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="chat" className="py-20 bg-muted/30">
@@ -213,7 +310,7 @@ const ChatInterface = () => {
                     variant="outline"
                     size="sm"
                     className="text-medical border-medical hover:bg-medical hover:text-white"
-                    onClick={() => setInputMessage("I have symptoms I'd like to check")}
+                    onClick={() => handleQuickAction('symptoms')}
                   >
                     Symptom Check
                   </Button>
@@ -221,15 +318,15 @@ const ChatInterface = () => {
                     variant="outline"
                     size="sm"
                     className="text-healing border-healing hover:bg-healing hover:text-white"
-                    onClick={() => setInputMessage("I need information about my medication")}
+                    onClick={() => handleQuickAction('medications')}
                   >
-                    Medication Info
+                    Medication Tracker
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     className="text-emergency border-emergency hover:bg-emergency hover:text-white"
-                    onClick={() => setInputMessage("I need emergency medical guidance")}
+                    onClick={() => handleQuickAction('emergency')}
                   >
                     Emergency Guide
                   </Button>
