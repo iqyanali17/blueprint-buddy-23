@@ -67,6 +67,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Medical theme semantic colors
+        medical: "hsl(var(--primary))",
+        healing: "hsl(var(--secondary))",
+        emergency: "hsl(var(--destructive))",
       },
       borderRadius: {
         lg: "var(--radius)",
