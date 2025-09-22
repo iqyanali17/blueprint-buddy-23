@@ -11,12 +11,15 @@ import { toast } from '@/hooks/use-toast';
 import SymptomChecker from './SymptomChecker';
 import MedicationTracker from './MedicationTracker';
 import EmergencyGuide from './EmergencyGuide';
+import ImageAnalysis from './ImageAnalysis';
+import HealthDashboard from './HealthDashboard';
+import UserProfile from './UserProfile';
 
 const ChatInterface = () => {
   const { user } = useAuth();
   const { messages, currentSession, sessions, loading, createSession, sendMessage, setCurrentSession } = useChat();
   const [inputMessage, setInputMessage] = useState('');
-  const [currentView, setCurrentView] = useState<'chat' | 'symptoms' | 'medications' | 'emergency'>('chat');
+  const [currentView, setCurrentView] = useState<'chat' | 'symptoms' | 'medications' | 'emergency' | 'image' | 'dashboard' | 'profile'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -53,7 +56,7 @@ const ChatInterface = () => {
     setCurrentView('chat');
   };
 
-  const handleQuickAction = (type: 'symptoms' | 'medications' | 'emergency') => {
+  const handleQuickAction = (type: 'symptoms' | 'medications' | 'emergency' | 'image' | 'dashboard' | 'profile') => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -70,6 +73,14 @@ const ChatInterface = () => {
       await createSession('Symptom Assessment');
     }
     await sendMessage(assessment);
+    setCurrentView('chat');
+  };
+
+  const handleImageComplete = async (result: string) => {
+    if (!currentSession) {
+      await createSession('Image Analysis');
+    }
+    await sendMessage(result);
     setCurrentView('chat');
   };
 
@@ -152,6 +163,78 @@ const ChatInterface = () => {
             </Button>
           </div>
           <EmergencyGuide />
+        </div>
+      </section>
+    );
+  }
+
+  if (currentView === 'image') {
+    return (
+      <section id="chat" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 border-primary text-primary">
+              Image Analysis
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">Medical Image Analysis</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Upload medical images for AI-powered analysis and insights.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto mb-6">
+            <Button onClick={() => setCurrentView('chat')} variant="outline">
+              ← Back to Chat
+            </Button>
+          </div>
+          <ImageAnalysis onComplete={handleImageComplete} />
+        </div>
+      </section>
+    );
+  }
+
+  if (currentView === 'dashboard') {
+    return (
+      <section id="chat" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 border-medical text-medical">
+              Health Dashboard
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">Your Health Overview</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Track your health metrics and view personalized insights.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto mb-6">
+            <Button onClick={() => setCurrentView('chat')} variant="outline">
+              ← Back to Chat
+            </Button>
+          </div>
+          <HealthDashboard />
+        </div>
+      </section>
+    );
+  }
+
+  if (currentView === 'profile') {
+    return (
+      <section id="chat" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 border-healing text-healing">
+              Medical Profile
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">Manage Your Profile</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Update your medical information and personal details.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto mb-6">
+            <Button onClick={() => setCurrentView('chat')} variant="outline">
+              ← Back to Chat
+            </Button>
+          </div>
+          <UserProfile />
         </div>
       </section>
     );
@@ -305,11 +388,19 @@ const ChatInterface = () => {
             {/* Input Area */}
             <div className="p-6 border-t bg-background">
               {user && (
-                <div className="flex items-center space-x-4 mb-4">
+                <div className="flex items-center space-x-4 mb-4 overflow-x-auto">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-medical border-medical hover:bg-medical hover:text-white"
+                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap"
+                    onClick={() => handleQuickAction('dashboard')}
+                  >
+                    Dashboard
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap"
                     onClick={() => handleQuickAction('symptoms')}
                   >
                     Symptom Check
@@ -317,18 +408,34 @@ const ChatInterface = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-healing border-healing hover:bg-healing hover:text-white"
+                    className="text-healing border-healing hover:bg-healing hover:text-white whitespace-nowrap"
                     onClick={() => handleQuickAction('medications')}
                   >
-                    Medication Tracker
+                    Medications
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-emergency border-emergency hover:bg-emergency hover:text-white"
+                    className="text-primary border-primary hover:bg-primary hover:text-white whitespace-nowrap"
+                    onClick={() => handleQuickAction('image')}
+                  >
+                    Image Analysis
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-emergency border-emergency hover:bg-emergency hover:text-white whitespace-nowrap"
                     onClick={() => handleQuickAction('emergency')}
                   >
-                    Emergency Guide
+                    Emergency
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-muted-foreground border-muted-foreground hover:bg-muted-foreground hover:text-white whitespace-nowrap"
+                    onClick={() => handleQuickAction('profile')}
+                  >
+                    Profile
                   </Button>
                 </div>
               )}

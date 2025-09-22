@@ -12,11 +12,12 @@ import { toast } from '@/hooks/use-toast';
 
 interface Medication {
   id: string;
-  name: string;
+  medication_name: string;
   dosage: string;
   frequency: string;
-  time: string;
+  reminder_times: string[];
   notes?: string;
+  is_active: boolean;
 }
 
 const MedicationTracker: React.FC = () => {
@@ -72,7 +73,8 @@ const MedicationTracker: React.FC = () => {
           medication_name: newMed.name,
           dosage: newMed.dosage,
           frequency: newMed.frequency,
-          reminder_time: newMed.time,
+          reminder_times: [newMed.time],
+          start_date: new Date().toISOString(),
           notes: newMed.notes,
           is_active: true
         })
@@ -250,13 +252,13 @@ const MedicationTracker: React.FC = () => {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <h4 className="font-medium text-lg">{med.name}</h4>
+                      <h4 className="font-medium text-lg">{med.medication_name}</h4>
                       <p className="text-muted-foreground">{med.dosage}</p>
                       <div className="flex items-center gap-4 mt-2">
-                        <Badge variant="secondary" className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {med.time}
-                        </Badge>
+                         <Badge variant="secondary" className="flex items-center gap-1">
+                           <Clock className="h-3 w-3" />
+                           {med.reminder_times?.[0] || 'Not set'}
+                         </Badge>
                         <Badge variant="outline">
                           {getFrequencyDisplay(med.frequency)}
                         </Badge>
