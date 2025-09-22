@@ -152,12 +152,28 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ onComplete }) => {
 ⚠️ **This is not a medical diagnosis.** Always consult with qualified healthcare professionals for proper medical evaluation and treatment.`;
       }
 
-      // Save to database (mock - in real app would store image and analysis)
+      // Create a dedicated session for image analysis
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('chat_sessions')
+        .insert({
+          user_id: user.id,
+          title: `Image Analysis - ${analysisTypes.find(t => t.type === analysisType)?.label}`,
+          session_type: 'image_analysis'
+        })
+        .select()
+        .single();
+
+      if (sessionError) {
+        console.error('Error creating session for image analysis:', sessionError);
+        throw sessionError;
+      }
+
+      // Save to database with proper session reference
       const { error: insertError } = await supabase
         .from('medical_images')
         .insert({
           user_id: user.id,
-          session_id: 'image-analysis-' + Date.now(),
+          session_id: sessionData.id,
           image_url: 'placeholder-url', // In real app, upload to storage first
           analysis_result: { type: analysisType, result: analysisResult },
           image_type: analysisType,

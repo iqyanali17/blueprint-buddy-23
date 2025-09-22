@@ -26,7 +26,7 @@ export interface ChatSession {
   id: string;
   user_id: string;
   title?: string;
-  session_type: 'general' | 'symptom_check' | 'emergency' | 'medication';
+  session_type: 'general' | 'symptom_check' | 'emergency' | 'medication' | 'image_analysis';
   is_emergency: boolean;
   created_at: string;
   updated_at: string;
