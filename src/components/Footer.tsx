@@ -104,7 +104,7 @@ const Footer = () => {
             </div>
 
             {/* CTA Button */}
-            <Button variant="medical" className="w-full">
+            <Button variant="medical" className="w-full" onClick={() => window.location.href = '/dashboard'}>
               <MessageCircle className="w-4 h-4 mr-2" />
               Start Chat Now
             </Button>

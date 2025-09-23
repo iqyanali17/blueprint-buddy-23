@@ -174,7 +174,7 @@ const Features = () => {
               Join thousands of users who trust MEDITALK for their preliminary medical guidance and health management.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="secondary" size="lg">
+              <Button variant="secondary" size="lg" onClick={() => window.location.href = '/dashboard'}>
                 <MessageCircle className="w-5 h-5 mr-2" />
                 Start Free Chat
               </Button>

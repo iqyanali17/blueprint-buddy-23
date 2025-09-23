@@ -52,7 +52,7 @@ const Hero = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="hero" size="xl" className="group">
+              <Button variant="hero" size="xl" className="group" onClick={() => window.location.href = '/dashboard'}>
                 <MessageCircle className="w-5 h-5 mr-2 group-hover:animate-pulse-medical" />
                 Start Medical Chat
               </Button>

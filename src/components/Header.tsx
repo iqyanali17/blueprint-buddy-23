@@ -64,9 +64,9 @@ const Header = () => {
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
                 </Button>
-                <Button variant="hero" size="sm">
+                <Button variant="hero" size="sm" onClick={() => window.location.href = '/dashboard'}>
                   <MessageCircle className="h-4 w-4 mr-2" />
-                  My Chats
+                  Dashboard
                 </Button>
               </div>
             ) : (
@@ -153,9 +153,9 @@ const Header = () => {
                       <LogOut className="h-4 w-4 mr-2" />
                       Sign Out
                     </Button>
-                    <Button variant="hero" size="sm">
+                    <Button variant="hero" size="sm" onClick={() => window.location.href = '/dashboard'}>
                       <MessageCircle className="h-4 w-4 mr-2" />
-                      My Chats
+                      Dashboard
                     </Button>
                   </div>
                 ) : (
