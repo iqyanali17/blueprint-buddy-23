@@ -21,6 +21,16 @@
     <!-- Medical Keywords for SEO -->
     <meta name="keywords" content="AI healthcare, medical assistant, symptom checker, telemedicine, health chatbot, medical guidance, digital health, healthcare AI, medical support, health technology" />
     
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Favicon and PWA Icons -->
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="theme-color" content="#3B82F6" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="MEDITALK" />
+    
     <!-- Canonical URL -->
     <link rel="canonical" href="https://meditalk.lovable.app" />
   </head>
@@ -28,5 +38,20 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('MEDITALK: SW registered successfully', registration);
+            })
+            .catch((registrationError) => {
+              console.log('MEDITALK: SW registration failed', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
