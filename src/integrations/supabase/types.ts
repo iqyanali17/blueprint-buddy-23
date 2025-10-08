@@ -14,7 +14,292 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chat_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          is_emergency: boolean
+          session_type: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_emergency?: boolean
+          session_type: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_emergency?: boolean
+          session_type?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medical_images: {
+        Row: {
+          analysis_result: Json | null
+          confidence_score: number | null
+          created_at: string
+          id: string
+          image_type: string | null
+          image_url: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          analysis_result?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          image_type?: string | null
+          image_url: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          analysis_result?: Json | null
+          confidence_score?: number | null
+          created_at?: string
+          id?: string
+          image_type?: string | null
+          image_url?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_images_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "medical_images_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      medication_reminders: {
+        Row: {
+          created_at: string
+          dosage: string | null
+          end_date: string | null
+          frequency: string
+          id: string
+          is_active: boolean
+          medication_name: string
+          notes: string | null
+          reminder_times: string[]
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dosage?: string | null
+          end_date?: string | null
+          frequency: string
+          id?: string
+          is_active?: boolean
+          medication_name: string
+          notes?: string | null
+          reminder_times: string[]
+          start_date: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dosage?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          medication_name?: string
+          notes?: string | null
+          reminder_times?: string[]
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medication_reminders_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachments: string[] | null
+          content: string
+          created_at: string
+          id: string
+          message_type: string
+          metadata: Json | null
+          sender: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          attachments?: string[] | null
+          content: string
+          created_at?: string
+          id?: string
+          message_type: string
+          metadata?: Json | null
+          sender: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          attachments?: string[] | null
+          content?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          metadata?: Json | null
+          sender?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          allergies: string[] | null
+          avatar_url: string | null
+          created_at: string
+          date_of_birth: string | null
+          email: string
+          emergency_contact: string | null
+          full_name: string | null
+          id: string
+          medical_conditions: string[] | null
+          medications: string[] | null
+          phone_number: string | null
+          preferred_language: string | null
+          updated_at: string
+        }
+        Insert: {
+          allergies?: string[] | null
+          avatar_url?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email: string
+          emergency_contact?: string | null
+          full_name?: string | null
+          id?: string
+          medical_conditions?: string[] | null
+          medications?: string[] | null
+          phone_number?: string | null
+          preferred_language?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allergies?: string[] | null
+          avatar_url?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string
+          emergency_contact?: string | null
+          full_name?: string | null
+          id?: string
+          medical_conditions?: string[] | null
+          medications?: string[] | null
+          phone_number?: string | null
+          preferred_language?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      symptom_assessments: {
+        Row: {
+          assessment_result: Json | null
+          created_at: string
+          id: string
+          recommendations: string[] | null
+          risk_level: string
+          session_id: string
+          symptoms: Json
+          user_id: string
+        }
+        Insert: {
+          assessment_result?: Json | null
+          created_at?: string
+          id?: string
+          recommendations?: string[] | null
+          risk_level: string
+          session_id: string
+          symptoms: Json
+          user_id: string
+        }
+        Update: {
+          assessment_result?: Json | null
+          created_at?: string
+          id?: string
+          recommendations?: string[] | null
+          risk_level?: string
+          session_id?: string
+          symptoms?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptom_assessments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "symptom_assessments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

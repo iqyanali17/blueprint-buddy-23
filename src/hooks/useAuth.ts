@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 export const useAuth = () => {
@@ -46,7 +46,7 @@ export const useAuth = () => {
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
       setLoading(true);
-      console.log('Attempting sign up with:', { email, fullName });
+      const redirectUrl = `${window.location.origin}/`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -55,29 +55,16 @@ export const useAuth = () => {
           data: {
             full_name: fullName,
           },
-          emailRedirectTo: undefined // Disable email confirmation
-        }
+          emailRedirectTo: redirectUrl,
+        },
       });
 
-      console.log('Sign up result:', { data, error });
       if (error) throw error;
 
-      // If user is created but not confirmed, try to sign them in directly
-      if (data.user) {
-        if (data.session) {
-          // User is already signed in (email confirmation disabled)
-          toast({
-            title: "Account created successfully!",
-            description: "Welcome to MEDITALK! You're now signed in.",
-          });
-        } else {
-          // Email confirmation is required, but we'll try to sign in anyway
-          toast({
-            title: "Account created!",
-            description: "Please try signing in with your credentials.",
-          });
-        }
-      }
+      toast({
+        title: "Success!",
+        description: "Account created successfully. You can now sign in.",
+      });
 
       return { data, error: null };
     } catch (error: any) {

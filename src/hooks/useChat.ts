@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase, ChatSession, Message } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import type { ChatSession, Message } from '@/lib/supabase';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
 
