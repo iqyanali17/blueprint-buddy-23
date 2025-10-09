@@ -11,21 +11,19 @@ import SEO from '@/components/SEO';
 
 const Index = () => {
   return (
-    <>
+    <div className="min-h-screen bg-background">
       <SEO />
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-1">
-          <Hero />
-          <Features />
-          <HowItWorks />
-          <About />
-          <Contact />
-          <ChatInterface />
-        </main>
-        <Footer />
-      </div>
-    </>
+      <Header />
+      <main>
+        <Hero />
+        <Features />
+        <HowItWorks />
+        <About />
+        <Contact />
+        <ChatInterface />
+      </main>
+      <Footer />
+    </div>
   );
 };
 
