@@ -133,24 +133,44 @@ export const useChat = () => {
     }
   };
 
-  // Simulate AI response (replace with actual AI integration)
+  // Call AI for actual medical assistance
   const generateAIResponse = async (userMessage: string): Promise<string> => {
     setLoading(true);
     
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setLoading(false);
-    
-    const responses = [
-      "I understand your concern. Can you provide more details about your symptoms?",
-      "Based on what you've described, I'd recommend consulting with a healthcare professional for proper diagnosis.",
-      "That sounds concerning. How long have you been experiencing these symptoms?",
-      "Thank you for sharing that information. Let me help you understand your options.",
-      "I'm here to assist you with medical guidance. Please remember this doesn't replace professional medical advice.",
-    ];
-    
-    return responses[Math.floor(Math.random() * responses.length)];
+    try {
+      // Build conversation history for context
+      const conversationMessages = messages.map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.content
+      }));
+
+      // Add the new user message
+      conversationMessages.push({
+        role: 'user',
+        content: userMessage
+      });
+
+      const { data, error } = await supabase.functions.invoke('medical-chat', {
+        body: { messages: conversationMessages }
+      });
+
+      if (error) {
+        console.error('Error calling AI:', error);
+        throw error;
+      }
+
+      setLoading(false);
+      return data.message || "I apologize, but I couldn't generate a response. Please try again.";
+    } catch (error: any) {
+      setLoading(false);
+      console.error('AI error:', error);
+      toast({
+        title: "AI Error",
+        description: error.message || "Failed to get AI response",
+        variant: "destructive",
+      });
+      return "I apologize, but I'm experiencing technical difficulties. Please try again in a moment.";
+    }
   };
 
   useEffect(() => {
