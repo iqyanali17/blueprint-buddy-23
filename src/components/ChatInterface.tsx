@@ -7,6 +7,8 @@ import { Send, Mic, Camera, AlertCircle, Bot, User, Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { VoiceInput } from '@/components/VoiceInput';
+import { LanguageSelector } from '@/components/LanguageSelector';
 import { toast } from '@/hooks/use-toast';
 import SymptomChecker from './SymptomChecker';
 import MedicationTracker from './MedicationTracker';
@@ -20,6 +22,7 @@ const ChatInterface = () => {
   const { messages, currentSession, sessions, loading, createSession, sendMessage, setCurrentSession } = useChat();
   const [inputMessage, setInputMessage] = useState('');
   const [currentView, setCurrentView] = useState<'chat' | 'symptoms' | 'medications' | 'emergency' | 'image' | 'dashboard' | 'profile'>('chat');
+  const [selectedLanguage, setSelectedLanguage] = useState('en');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -74,6 +77,10 @@ const ChatInterface = () => {
     }
     await sendMessage(assessment);
     setCurrentView('chat');
+  };
+
+  const handleVoiceTranscript = (transcript: string) => {
+    setInputMessage(transcript);
   };
 
   const handleImageComplete = async (result: string) => {
@@ -276,15 +283,18 @@ const ChatInterface = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   {user && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleStartNewChat}
-                      className="border-medical text-medical hover:bg-medical hover:text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      New Chat
-                    </Button>
+                    <>
+                      <LanguageSelector onLanguageChange={setSelectedLanguage} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleStartNewChat}
+                        className="border-medical text-medical hover:bg-medical hover:text-white"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        New Chat
+                      </Button>
+                    </>
                   )}
                   <Badge variant="secondary" className="bg-healing/10 text-healing border-healing/20">
                     AI Powered
@@ -450,14 +460,11 @@ const ChatInterface = () => {
                     className="pr-20 border-medical/20 focus:border-medical"
                     disabled={!user}
                   />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={!user}>
-                      <Mic className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={!user}>
-                      <Camera className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </div>
+                  {user && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                      <VoiceInput onTranscript={handleVoiceTranscript} />
+                    </div>
+                  )}
                 </div>
                 <Button 
                   onClick={handleSendMessage}

@@ -2,3 +2,9 @@ project_id = "fimhawidksawqvpthngl"
 
 [functions.medical-chat]
 verify_jwt = false
+
+[functions.translate-text]
+verify_jwt = false
+
+[functions.speech-to-text]
+verify_jwt = false

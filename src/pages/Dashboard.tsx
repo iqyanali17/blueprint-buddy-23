@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,9 +14,11 @@ import {
   Heart,
   Calendar,
   FileText,
-  Settings
+  Settings,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminCheck } from '@/hooks/useAdminCheck';
 import ChatInterface from '@/components/ChatInterface';
 import SymptomChecker from '@/components/SymptomChecker';
 import MedicationTracker from '@/components/MedicationTracker';
@@ -26,6 +29,8 @@ import UserProfile from '@/components/UserProfile';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { isAdmin } = useAdminCheck();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [chatResult, setChatResult] = useState<string>('');
 
@@ -126,6 +131,12 @@ const Dashboard = () => {
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span>Online</span>
               </Badge>
+              {isAdmin && (
+                <Button variant="outline" onClick={() => navigate('/admin')}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Admin Panel
+                </Button>
+              )}
               <Button variant="outline" onClick={() => window.location.href = '/'}>
                 Back to Home
               </Button>

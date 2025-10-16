@@ -18,6 +18,33 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Analyze sentiment using AI
+    const sentimentAnalysis = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: "Analyze the emotional sentiment of the user's message. Respond with only one word: positive, negative, neutral, anxious, or distressed."
+          },
+          {
+            role: "user",
+            content: messages[messages.length - 1].content
+          }
+        ],
+      }),
+    });
+
+    const sentimentData = await sentimentAnalysis.json();
+    const sentiment = sentimentData.choices[0].message.content.toLowerCase().trim();
+    
+    console.log('Detected sentiment:', sentiment);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -29,7 +56,9 @@ serve(async (req) => {
         messages: [
           { 
             role: "system", 
-            content: "You are MEDITALK, a compassionate and knowledgeable medical AI assistant. Provide helpful medical information while always reminding users to consult healthcare professionals for serious concerns. Be empathetic, clear, and informative. Format your responses in a friendly, conversational way." 
+            content: `You are MEDITALK, a compassionate and knowledgeable medical AI assistant. Provide helpful medical information while always reminding users to consult healthcare professionals for serious concerns. Be empathetic, clear, and informative. Format your responses in a friendly, conversational way.
+
+The user's current emotional state is: ${sentiment}. Adjust your response to be ${sentiment === 'anxious' || sentiment === 'distressed' ? 'extra reassuring and calming' : sentiment === 'negative' ? 'supportive and empathetic' : 'professional and helpful'}.`
           },
           ...messages,
         ],
