@@ -31,6 +31,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const isActiveRef = useRef(false); // Track if recognition is actually running
   const { toast } = useToast();
 
   /**
@@ -95,6 +96,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
      */
     recognition.onstart = () => {
       console.log('🎙️ Speech recognition started');
+      isActiveRef.current = true;
       setIsListening(true);
       setIsProcessing(false);
     };
@@ -106,6 +108,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
      */
     recognition.onend = () => {
       console.log('⏹️ Speech recognition ended');
+      isActiveRef.current = false;
       setIsListening(false);
       setIsProcessing(false);
     };
@@ -121,6 +124,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
      */
     recognition.onerror = (event: any) => {
       console.error('❌ Speech recognition error:', event.error);
+      isActiveRef.current = false;
       setIsListening(false);
       setIsProcessing(false);
 
@@ -182,7 +186,20 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
       return;
     }
 
+    // If already active, stop first then restart
+    if (isActiveRef.current) {
+      console.log('🔄 Recognition already active, stopping first...');
+      recognitionRef.current.stop();
+      
+      // Wait for it to fully stop before restarting
+      setTimeout(() => {
+        startListening();
+      }, 300);
+      return;
+    }
+
     try {
+      console.log('▶️ Starting speech recognition...');
       recognitionRef.current.start();
       
       toast({
@@ -191,14 +208,13 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
       });
     } catch (error) {
       console.error('Error starting recognition:', error);
+      isActiveRef.current = false;
       
-      // If already running, stop and restart
-      if (error instanceof Error && error.message.includes('already started')) {
-        recognitionRef.current.stop();
-        setTimeout(() => {
-          recognitionRef.current.start();
-        }, 100);
-      }
+      toast({
+        title: "❌ Failed to Start",
+        description: "Could not start voice recognition. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -208,8 +224,10 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
    * Manually stops speech recognition
    */
   const stopListening = () => {
-    if (recognitionRef.current) {
+    if (recognitionRef.current && isActiveRef.current) {
+      console.log('⏹️ Manually stopping recognition...');
       recognitionRef.current.stop();
+      isActiveRef.current = false;
       
       toast({
         title: "⏹️ Stopped Listening",
