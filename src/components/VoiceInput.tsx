@@ -1,158 +1,225 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 interface VoiceInputProps {
   onTranscript: (text: string) => void;
 }
 
 /**
- * VoiceInput Component
+ * VoiceInput Component - Free Browser-Based Speech Recognition
  * 
- * This component provides voice-to-text functionality for the chat interface.
- * It uses the browser's MediaRecorder API to capture audio and OpenAI's Whisper API
- * to transcribe speech to text.
+ * This component uses the Web Speech API (browser's built-in speech recognition)
+ * instead of external APIs, making it completely free with no API keys needed.
+ * 
+ * Supported Browsers:
+ * - Chrome/Chromium (full support)
+ * - Edge (full support)
+ * - Safari (full support)
+ * - Firefox (limited support)
  * 
  * Features:
- * - Real-time audio recording with visual feedback
- * - Automatic transcription using OpenAI Whisper API
- * - Error handling and user notifications
- * - Loading states and disabled states during processing
+ * - Real-time speech recognition
+ * - No API costs or rate limits
+ * - Instant transcription
+ * - Multiple language support
+ * - Visual feedback during recording
  */
 export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
-  // State management for recording and processing status
-  const [isRecording, setIsRecording] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const recognitionRef = useRef<any>(null);
   const { toast } = useToast();
 
   /**
-   * Start Recording Function
+   * Initialize Speech Recognition on Component Mount
    * 
-   * 1. Request microphone access from the browser
-   * 2. Create MediaRecorder instance to capture audio
-   * 3. Store audio chunks as they're recorded
-   * 4. When recording stops, convert to base64 and send to backend
+   * Creates a SpeechRecognition instance with optimal settings:
+   * - continuous: false (stops after user finishes speaking)
+   * - interimResults: true (shows text as user speaks)
+   * - lang: 'en-US' (can be changed for other languages)
    */
-  const startRecording = async () => {
-    try {
-      // Request microphone permission and get audio stream
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100,
-        }
-      });
+  useEffect(() => {
+    // Check if browser supports Speech Recognition API
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      console.warn('Speech Recognition not supported in this browser');
+      return;
+    }
 
-      // Create MediaRecorder with webm format (widely supported)
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm'
-      });
-      
-      const audioChunks: Blob[] = [];
+    // Create and configure Speech Recognition instance
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false; // Stop after user stops speaking
+    recognition.interimResults = true; // Show results while speaking
+    recognition.lang = 'en-US'; // Default language (can be changed)
+    recognition.maxAlternatives = 1; // Number of alternative transcriptions
 
-      // Collect audio data as it's recorded
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunks.push(event.data);
-        }
-      };
+    /**
+     * Handle Recognition Results
+     * 
+     * Fired when speech is detected and transcribed.
+     * Provides both interim (partial) and final results.
+     */
+    recognition.onresult = (event: any) => {
+      const last = event.results.length - 1;
+      const transcript = event.results[last][0].transcript;
+      const isFinal = event.results[last].isFinal;
 
-      // Handle recording completion
-      recorder.onstop = async () => {
-        // Combine all audio chunks into a single blob
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const reader = new FileReader();
+      console.log('🎤 Speech detected:', { transcript, isFinal });
+
+      // If final result, send to parent component
+      if (isFinal) {
+        setIsProcessing(true);
         
-        // Convert blob to base64 for API transmission
-        reader.onloadend = async () => {
-          const base64Audio = (reader.result as string).split(',')[1];
-          setIsProcessing(true);
+        // Small delay to show processing state
+        setTimeout(() => {
+          onTranscript(transcript);
+          setIsProcessing(false);
+          setIsListening(false);
+          
+          toast({
+            title: "✅ Speech Recognized",
+            description: `"${transcript.substring(0, 50)}${transcript.length > 50 ? '...' : ''}"`,
+          });
+        }, 300);
+      }
+    };
 
-          try {
-            // Call the speech-to-text edge function
-            // This function sends audio to OpenAI Whisper API for transcription
-            const { data, error } = await supabase.functions.invoke('speech-to-text', {
-              body: { audio: base64Audio }
-            });
+    /**
+     * Handle Speech Recognition Start
+     * 
+     * Called when the service has begun listening
+     */
+    recognition.onstart = () => {
+      console.log('🎙️ Speech recognition started');
+      setIsListening(true);
+      setIsProcessing(false);
+    };
 
-            if (error) {
-              console.error('Edge function error:', error);
-              throw error;
-            }
+    /**
+     * Handle Speech Recognition End
+     * 
+     * Called when the service has stopped listening
+     */
+    recognition.onend = () => {
+      console.log('⏹️ Speech recognition ended');
+      setIsListening(false);
+      setIsProcessing(false);
+    };
 
-            // If transcription successful, pass text to parent component
-            if (data?.text) {
-              onTranscript(data.text);
-              toast({
-                title: "🎤 Transcription Complete",
-                description: "Your voice has been converted to text successfully!",
-              });
-            } else {
-              throw new Error('No transcription returned');
-            }
-          } catch (error) {
-            console.error('Transcription error:', error);
-            toast({
-              title: "❌ Transcription Failed",
-              description: error instanceof Error ? error.message : "Could not convert speech to text. Please try again.",
-              variant: "destructive",
-            });
-          } finally {
-            setIsProcessing(false);
-          }
-        };
+    /**
+     * Handle Recognition Errors
+     * 
+     * Common errors:
+     * - no-speech: User didn't speak
+     * - audio-capture: Microphone not available
+     * - not-allowed: Permission denied
+     * - network: Network issues (shouldn't happen with browser API)
+     */
+    recognition.onerror = (event: any) => {
+      console.error('❌ Speech recognition error:', event.error);
+      setIsListening(false);
+      setIsProcessing(false);
 
-        // Start reading the audio blob
-        reader.readAsDataURL(audioBlob);
-        
-        // Clean up: stop all audio tracks to release microphone
-        stream.getTracks().forEach(track => track.stop());
-      };
+      let errorMessage = 'Could not recognize speech. Please try again.';
+      let errorTitle = '❌ Recognition Failed';
 
-      // Start recording
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsRecording(true);
-      
-      // Show recording started notification
+      switch (event.error) {
+        case 'no-speech':
+          errorMessage = 'No speech detected. Please speak clearly into your microphone.';
+          errorTitle = '🔇 No Speech Detected';
+          break;
+        case 'audio-capture':
+          errorMessage = 'Microphone not found. Please check your device settings.';
+          errorTitle = '🎤 Microphone Not Found';
+          break;
+        case 'not-allowed':
+          errorMessage = 'Microphone access denied. Please allow microphone access in your browser settings.';
+          errorTitle = '🚫 Permission Denied';
+          break;
+        case 'network':
+          errorMessage = 'Network error occurred. Please check your connection.';
+          errorTitle = '🌐 Network Error';
+          break;
+        case 'aborted':
+          // User manually stopped - don't show error
+          return;
+      }
+
       toast({
-        title: "🎙️ Recording Started",
-        description: "Speak clearly into your microphone...",
-      });
-      
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      
-      // Handle permission denied or other errors
-      toast({
-        title: "🚫 Microphone Access Denied",
-        description: "Please allow microphone access in your browser settings to use voice input.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       });
+    };
+
+    recognitionRef.current = recognition;
+
+    // Cleanup on unmount
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [onTranscript, toast]);
+
+  /**
+   * Start Listening Function
+   * 
+   * Initiates speech recognition and provides user feedback
+   */
+  const startListening = () => {
+    // Check if Speech Recognition is supported
+    if (!recognitionRef.current) {
+      toast({
+        title: "⚠️ Not Supported",
+        description: "Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      recognitionRef.current.start();
+      
+      toast({
+        title: "🎙️ Listening...",
+        description: "Speak clearly into your microphone. I'll transcribe your speech automatically.",
+      });
+    } catch (error) {
+      console.error('Error starting recognition:', error);
+      
+      // If already running, stop and restart
+      if (error instanceof Error && error.message.includes('already started')) {
+        recognitionRef.current.stop();
+        setTimeout(() => {
+          recognitionRef.current.start();
+        }, 100);
+      }
     }
   };
 
   /**
-   * Stop Recording Function
+   * Stop Listening Function
    * 
-   * Stops the active MediaRecorder, which triggers the processing pipeline
+   * Manually stops speech recognition
    */
-  const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
-      setIsRecording(false);
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
       
       toast({
-        title: "⏹️ Recording Stopped",
-        description: "Processing your audio...",
+        title: "⏹️ Stopped Listening",
+        description: "Speech recognition stopped.",
       });
     }
   };
+
+  // Check if browser supports speech recognition
+  const isSupported = !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition;
 
   return (
     <div className="relative">
@@ -160,18 +227,26 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
       <Button
         variant="outline"
         size="icon"
-        onClick={isRecording ? stopRecording : startRecording}
-        disabled={isProcessing}
+        onClick={isListening ? stopListening : startListening}
+        disabled={isProcessing || !isSupported}
         className="relative transition-all duration-200 hover:scale-105"
-        title={isRecording ? "Stop Recording" : isProcessing ? "Processing..." : "Start Voice Input"}
+        title={
+          !isSupported 
+            ? "Speech recognition not supported in your browser" 
+            : isListening 
+            ? "Stop Listening" 
+            : isProcessing 
+            ? "Processing..." 
+            : "Start Voice Input (Free - No API needed!)"
+        }
       >
         {/* Show different icons based on state */}
         {isProcessing ? (
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        ) : isRecording ? (
+        ) : isListening ? (
           <>
             <MicOff className="h-4 w-4 text-destructive" />
-            {/* Pulsing red indicator when recording */}
+            {/* Pulsing red indicator when listening */}
             <span className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full animate-pulse" />
           </>
         ) : (
@@ -180,7 +255,7 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
       </Button>
       
       {/* "Listening..." indicator badge */}
-      {isRecording && (
+      {isListening && (
         <Badge 
           variant="destructive" 
           className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap animate-pulse"
@@ -196,6 +271,16 @@ export const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript }) => {
           className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap"
         >
           ⚙️ Processing...
+        </Badge>
+      )}
+
+      {/* Browser not supported indicator */}
+      {!isSupported && (
+        <Badge 
+          variant="outline" 
+          className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs border-warning text-warning"
+        >
+          ⚠️ Not supported
         </Badge>
       )}
     </div>
