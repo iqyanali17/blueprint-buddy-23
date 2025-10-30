@@ -35,7 +35,7 @@ const SEO: React.FC<SEOProps> = ({
       "url": canonicalUrl,
       "logo": {
         "@type": "ImageObject",
-        "url": `${canonicalUrl}/logo.png`
+        "url": `${canonicalUrl}/meditalk-logo.svg`
       },
       "contactPoint": {
         "@type": "ContactPoint",
@@ -105,13 +105,11 @@ const SEO: React.FC<SEOProps> = ({
       <link rel="alternate" hrefLang="x-default" href={canonicalUrl} />
       
       {/* Favicon and app icons */}
-      <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-      <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-      <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-      <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+      <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2" />
+      <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg?v=2" />
       
       {/* PWA manifest */}
-      <link rel="manifest" href="/manifest.json" />
+      <link rel="manifest" href="/manifest.json?v=2" />
       <meta name="theme-color" content="#3B82F6" />
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-status-bar-style" content="default" />

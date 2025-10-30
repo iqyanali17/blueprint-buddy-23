@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,41 @@ const MedicationTracker: React.FC = () => {
     time: '08:00',
     notes: ''
   });
+  const [notifiedMap, setNotifiedMap] = useState<Record<string, string>>({});
+  const notifiedMapRef = useRef<Record<string, string>>({});
+  useEffect(() => { notifiedMapRef.current = notifiedMap; }, [notifiedMap]);
+  const [enableSound, setEnableSound] = useState<boolean>(true);
+
+  const playBeep = () => {
+    if (!enableSound) return;
+    try {
+      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = 880;
+      o.connect(g);
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.0);
+      o.stop(ctx.currentTime + 1.0);
+    } catch (e) {
+      // ignore sound errors
+    }
+  };
+
+  const normalizeTime = (t: string): string => {
+    // Accept formats like "8:0", "08:00", or "08:00:00" and normalize to HH:MM
+    if (!t) return '';
+    const parts = t.split(':');
+    const h = parts[0] ? parts[0].padStart(2, '0') : '00';
+    const m = parts[1] ? parts[1].padStart(2, '0') : '00';
+    return `${h}:${m}`;
+  };
 
   useEffect(() => {
     if (user) {
@@ -137,6 +173,80 @@ const MedicationTracker: React.FC = () => {
     return frequencies[frequency] || frequency;
   };
 
+  useEffect(() => {
+    if (!user || medications.length === 0) return;
+
+    const runTick = () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const current = `${hh}:${mm}`;
+      const todayKey = now.toISOString().slice(0, 10);
+
+      medications.forEach((med) => {
+        if (!med.is_active || !Array.isArray(med.reminder_times)) return;
+        med.reminder_times.forEach((t) => {
+          if (normalizeTime(String(t).trim()) === current) {
+            const key = `${med.id}-${t}`;
+            if (notifiedMapRef.current[key] !== todayKey) {
+              toast({
+                title: 'Medication Reminder',
+                description: `${med.medication_name} — ${med.dosage || ''} at ${t}`.trim(),
+              });
+              playBeep();
+
+              if (typeof window !== 'undefined' && 'Notification' in window) {
+                if (Notification.permission === 'granted') {
+                  new Notification('Medication Reminder', {
+                    body: `${med.medication_name} — ${med.dosage || ''} at ${t}`.trim(),
+                  });
+                } else if (Notification.permission === 'default') {
+                  Notification.requestPermission().then((perm) => {
+                    if (perm === 'granted') {
+                      new Notification('Medication Reminder', {
+                        body: `${med.medication_name} — ${med.dosage || ''} at ${t}`.trim(),
+                      });
+                    }
+                  });
+                }
+              }
+
+              setNotifiedMap((prev) => ({ ...prev, [key]: todayKey }));
+            }
+          }
+        });
+      });
+    };
+
+    // Align first run to the start of the next minute to avoid missing exact times
+    const now = new Date();
+    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    const startTimeout = setTimeout(() => {
+      runTick();
+      const interval = setInterval(runTick, 60_000);
+      (window as any).__medReminderInterval = interval;
+    }, Math.max(0, msUntilNextMinute));
+
+    // Also run once immediately in case the app opened exactly at the target minute
+    runTick();
+
+    return () => {
+      clearTimeout(startTimeout);
+      const interval = (window as any).__medReminderInterval as number | undefined;
+      if (interval) clearInterval(interval);
+    };
+  }, [user, medications]);
+
+  // Proactively request notification permission once on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        // Fire and forget; user can still deny
+        Notification.requestPermission().catch(() => {});
+      }
+    }
+  }, []);
+
   if (!user) {
     return (
       <Card className="w-full max-w-2xl mx-auto">
@@ -159,6 +269,15 @@ const MedicationTracker: React.FC = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="flex items-center gap-2">
+          <input
+            id="enable-sound"
+            type="checkbox"
+            checked={enableSound}
+            onChange={(e) => setEnableSound(e.target.checked)}
+          />
+          <Label htmlFor="enable-sound">Enable sound alarm</Label>
+        </div>
         {!showAddForm && (
           <Button onClick={() => setShowAddForm(true)} className="w-full">
             <Plus className="h-4 w-4 mr-2" />
@@ -255,10 +374,19 @@ const MedicationTracker: React.FC = () => {
                       <h4 className="font-medium text-lg">{med.medication_name}</h4>
                       <p className="text-muted-foreground">{med.dosage}</p>
                       <div className="flex items-center gap-4 mt-2">
-                         <Badge variant="secondary" className="flex items-center gap-1">
-                           <Clock className="h-3 w-3" />
-                           {med.reminder_times?.[0] || 'Not set'}
-                         </Badge>
+                        {Array.isArray(med.reminder_times) && med.reminder_times.length > 0 ? (
+                          med.reminder_times.map((rt) => (
+                            <Badge key={rt} variant="secondary" className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {rt}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="secondary" className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Not set
+                          </Badge>
+                        )}
                         <Badge variant="outline">
                           {getFrequencyDisplay(med.frequency)}
                         </Badge>

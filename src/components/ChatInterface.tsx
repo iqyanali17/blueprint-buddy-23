@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Send, Mic, Camera, AlertCircle, Bot, User, Plus } from 'lucide-react';
+import { Send, Mic, Camera, AlertCircle, Bot, User, Plus, Menu, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { VoiceInput } from '@/components/VoiceInput';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { toast } from '@/hooks/use-toast';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import SymptomChecker from './SymptomChecker';
 import MedicationTracker from './MedicationTracker';
 import EmergencyGuide from './EmergencyGuide';
@@ -19,19 +21,57 @@ import UserProfile from './UserProfile';
 
 const ChatInterface = () => {
   const { user } = useAuth();
-  const { messages, currentSession, sessions, loading, createSession, sendMessage, setCurrentSession } = useChat();
+  const { messages, currentSession, sessions, loading, createSession, sendMessage, addAssistantMessage, setCurrentSession, loadMessages, deleteSession } = useChat();
   const [inputMessage, setInputMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [currentView, setCurrentView] = useState<'chat' | 'symptoms' | 'medications' | 'emergency' | 'image' | 'dashboard' | 'profile'>('chat');
   const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [isExpanded] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = () => {};
+
+  // No auto expand/collapse; chat stays full-screen
+
+  const handleImageButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleInlineImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+    if (!file.type.startsWith('image/')) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      let sessionId = currentSession?.id;
+      if (!sessionId) {
+        const s = await createSession('Medical Consultation');
+        sessionId = s?.id;
+      }
+      await sendMessage(inputMessage.trim(), {
+        messageType: 'image',
+        attachments: [dataUrl],
+        metadata: { name: file.name, size: file.size, type: file.type },
+        sessionIdOverride: sessionId,
+      });
+      setInputMessage('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+    reader.readAsDataURL(file);
   };
 
   useEffect(() => {
-    scrollToBottom();
+    // No auto-scroll to bottom; newest messages appear at the top
   }, [messages]);
+
+  // Keep position; do not auto-scroll when switching views (must be before any early returns)
+  useEffect(() => {
+    // intentionally empty to avoid hook order changes and keep behavior consistent
+  }, [currentView]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim()) return;
@@ -45,11 +85,13 @@ const ChatInterface = () => {
       return;
     }
 
-    if (!currentSession) {
-      await createSession('Medical Consultation');
+    let sessionId = currentSession?.id;
+    if (!sessionId) {
+      const s = await createSession('Medical Consultation');
+      sessionId = s?.id;
     }
 
-    await sendMessage(inputMessage);
+    await sendMessage(inputMessage, { sessionIdOverride: sessionId });
     setInputMessage('');
   };
 
@@ -72,22 +114,36 @@ const ChatInterface = () => {
   };
 
   const handleSymptomComplete = async (assessment: string) => {
-    if (!currentSession) {
-      await createSession('Symptom Assessment');
+    let sessionId = currentSession?.id;
+    if (!sessionId) {
+      const s = await createSession('Symptom Assessment');
+      sessionId = s?.id;
     }
-    await sendMessage(assessment);
+    await sendMessage(assessment, { sessionIdOverride: sessionId });
     setCurrentView('chat');
   };
 
-  const handleVoiceTranscript = (transcript: string) => {
+  const handleVoiceTranscript = async (transcript: string) => {
     setInputMessage(transcript);
   };
 
-  const handleImageComplete = async (result: string) => {
-    if (!currentSession) {
-      await createSession('Image Analysis');
+  const handleImageComplete = async (payload: { imageDataUrl: string; result: string }) => {
+    let sessionId = currentSession?.id;
+    if (!sessionId) {
+      const s = await createSession('Image Analysis');
+      sessionId = s?.id;
     }
-    await sendMessage(result);
+    // 1) Send the image as user's message without triggering AI
+    await sendMessage('', {
+      messageType: 'image',
+      attachments: payload.imageDataUrl ? [payload.imageDataUrl] : [],
+      metadata: { source: 'image-analysis' },
+      skipAI: true,
+      sessionIdOverride: sessionId,
+    });
+    // 2) Append the analysis as assistant reply
+    await addAssistantMessage(payload.result, 'text');
+    // 3) Go back to chat view
     setCurrentView('chat');
   };
 
@@ -98,6 +154,12 @@ const ChatInterface = () => {
       sender: 'assistant',
       content: "Hello! I'm MEDITALK, your AI healthcare assistant. I can help you with symptom assessment, medical guidance, and health questions. How can I assist you today?",
       created_at: new Date().toISOString(),
+      // Added fields to align with Message type
+      message_type: 'text',
+      attachments: [],
+      metadata: null,
+      session_id: 'demo',
+      user_id: 'demo'
     }
   ];
 
@@ -247,30 +309,79 @@ const ChatInterface = () => {
     );
   }
 
-  return (
-    <section id="chat" className="py-20 bg-muted/30">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <Badge variant="outline" className="mb-4 border-healing text-healing">
-            {user ? 'Your Medical Assistant' : 'Live Demo'}
-          </Badge>
-          <h2 className="text-3xl font-bold mb-4">
-            {user ? 'Chat with MEDITALK' : 'Try MEDITALK Now'}
-          </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            {user 
-              ? 'Your personal AI medical assistant is ready to help with symptoms, medications, and health questions.'
-              : 'Experience our AI medical assistant with this interactive demo. Sign up for personalized medical guidance.'
-            }
-          </p>
-        </div>
+  
 
-        <Card className="max-w-4xl mx-auto shadow-2xl border-0 bg-background">
-          <div className="flex flex-col h-[600px]">
+  return (
+    <section id="chat" className="py-0 min-h-screen bg-muted/30">
+      <div className={`mx-auto px-0`}>
+        {false && (
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 border-healing text-healing">
+              {user ? 'Your Medical Assistant' : 'Live Demo'}
+            </Badge>
+            <h2 className="text-3xl font-bold mb-4">
+              {user ? 'Chat with MEDITALK' : 'Try MEDITALK Now'}
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              {user 
+                ? 'Your personal AI medical assistant is ready to help with symptoms, medications, and health questions.'
+                : 'Experience our AI medical assistant with this interactive demo. Sign up for personalized medical guidance.'
+              }
+            </p>
+          </div>
+        )}
+
+        <Card className={`w-full max-w-none rounded-none shadow-2xl border-0 bg-background`}>
+          <div className={`flex flex-col h-[100dvh] md:h-[100vh]`}>
             {/* Chat Header */}
             <div className="p-6 border-b bg-gradient-to-r from-medical/5 to-healing/5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
+                  <Sheet>
+                    <SheetTrigger asChild>
+                      <Button variant="outline" size="sm" className="mr-2">History</Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="w-80 sm:max-w-sm">
+                      <SheetHeader>
+                        <SheetTitle>Chat History</SheetTitle>
+                      </SheetHeader>
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleStartNewChat}
+                          className="w-full border-medical text-medical hover:bg-medical hover:text-white"
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> New Chat
+                        </Button>
+                      </div>
+                      <div className="mt-3 flex-1 overflow-y-auto">
+                        {sessions.map((s) => (
+                          <div
+                            key={s.id}
+                            onClick={async () => { setCurrentSession(s); await loadMessages(s.id); }}
+                            className={`group px-3 py-2 cursor-pointer hover:bg-muted/50 rounded-md flex items-center justify-between ${currentSession?.id === s.id ? 'bg-muted' : ''}`}
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{s.title || 'Untitled Chat'}</p>
+                              <p className="text-xs text-muted-foreground">{new Date(s.updated_at).toLocaleString()}</p>
+                            </div>
+                            <button
+                              onClick={async (e) => { e.stopPropagation(); await deleteSession(s.id); }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                              aria-label="Delete chat"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                        {sessions.length === 0 && (
+                          <p className="text-sm text-muted-foreground mt-6 text-center">No chats yet</p>
+                        )}
+                      </div>
+                      <div className="mt-4 text-xs text-muted-foreground text-center">© 2025 MediTalk</div>
+                    </SheetContent>
+                  </Sheet>
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-medical to-healing flex items-center justify-center">
                     <Bot className="h-5 w-5 text-white" />
                   </div>
@@ -304,7 +415,7 @@ const ChatInterface = () => {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-3 md:space-y-4 scroll-smooth">
               {!user && (
                 <div className="text-center py-8">
                   <Bot className="h-16 w-16 mx-auto text-medical/60 mb-4" />
@@ -322,7 +433,7 @@ const ChatInterface = () => {
                   />
                 </div>
               )}
-              
+
               {messages.length === 0 && user && (
                 <div className="text-center py-8">
                   <Bot className="h-16 w-16 mx-auto text-medical/60 mb-4" />
@@ -362,7 +473,16 @@ const ChatInterface = () => {
                           : 'bg-muted border border-border'
                       }`}
                     >
-                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      {Array.isArray(message.attachments) && message.attachments.length > 0 && (
+                        <div className="space-y-2 mb-2">
+                          {message.attachments.map((att, idx) => (
+                            <img key={idx} src={att} alt={`attachment-${idx}`} className="rounded-lg max-h-64 object-contain" />
+                          ))}
+                        </div>
+                      )}
+                      {message.content && (
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      )}
                       <p className={`text-xs mt-2 opacity-70 ${
                         message.sender === 'user' ? 'text-primary-foreground' : 'text-muted-foreground'
                       }`}>
@@ -372,7 +492,7 @@ const ChatInterface = () => {
                   </div>
                 </div>
               ))}
-              
+
               {loading && (
                 <div className="flex justify-start">
                   <div className="flex items-start space-x-3 max-w-[80%]">
@@ -456,15 +576,30 @@ const ChatInterface = () => {
                     placeholder={user ? "Describe your symptoms or ask a health question..." : "Sign in to start chatting with MEDITALK..."}
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
                     className="pr-20 border-medical/20 focus:border-medical"
                     disabled={!user}
                   />
                   {user && (
                     <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
                       <VoiceInput onTranscript={handleVoiceTranscript} />
+                      <Button variant="outline" size="icon" onClick={handleImageButtonClick}>
+                        <Camera className="h-4 w-4" />
+                      </Button>
                     </div>
                   )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleInlineImageSelected}
+                  />
                 </div>
                 <Button 
                   onClick={handleSendMessage}

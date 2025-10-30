@@ -29,6 +29,55 @@ export const useChat = () => {
     }
   };
 
+  const deleteSession = async (sessionId: string) => {
+    if (!user) return false;
+    try {
+      const { error } = await supabase
+        .from('chat_sessions')
+        .delete()
+        .eq('id', sessionId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      setSessions(prev => prev.filter(s => s.id !== sessionId));
+      if (currentSession?.id === sessionId) {
+        const next = sessions.find(s => s.id !== sessionId) || null;
+        setCurrentSession(next || null);
+        setMessages([]);
+        if (next) await loadMessages(next.id);
+      }
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting session:', error.message);
+      toast({ title: 'Error deleting session', description: error.message, variant: 'destructive' });
+      return false;
+    }
+  };
+
+  // Directly add an assistant message (used for deterministic frontend modules)
+  const addAssistantMessage = async (content: string, messageType: Message['message_type'] = 'text') => {
+    if (!user || !currentSession) return null;
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          session_id: currentSession.id,
+          user_id: user.id,
+          content,
+          message_type: messageType,
+          sender: 'assistant',
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      setMessages(prev => [...prev, data]);
+      return data;
+    } catch (error: any) {
+      console.error('Error adding assistant message:', error.message);
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
   // Load messages for current session
   const loadMessages = async (sessionId: string) => {
     if (!user) return;
@@ -81,18 +130,31 @@ export const useChat = () => {
   };
 
   // Send message
-  const sendMessage = async (content: string, messageType: Message['message_type'] = 'text') => {
-    if (!user || !currentSession) return null;
+  type SendOptions = {
+    messageType?: Message['message_type'];
+    attachments?: string[];
+    metadata?: any;
+    skipAI?: boolean;
+    sessionIdOverride?: string;
+  };
+
+  const sendMessage = async (content: string, options: SendOptions = {}) => {
+    if (!user) return null;
+    const { messageType = 'text', attachments, metadata, skipAI = false, sessionIdOverride } = options;
+    const sessionId = sessionIdOverride ?? currentSession?.id;
+    if (!sessionId) return null;
     
     try {
       // Insert user message
       const { data: userMessage, error: userError } = await supabase
         .from('messages')
         .insert({
-          session_id: currentSession.id,
+          session_id: sessionId,
           user_id: user.id,
           content,
           message_type: messageType,
+          attachments: attachments ?? null,
+          metadata: metadata ?? null,
           sender: 'user',
         })
         .select()
@@ -102,24 +164,26 @@ export const useChat = () => {
       
       setMessages(prev => [...prev, userMessage]);
 
-      // Simulate AI response (in production, this would call your AI service)
-      const aiResponse = await generateAIResponse(content);
-      
-      const { data: assistantMessage, error: assistantError } = await supabase
-        .from('messages')
-        .insert({
-          session_id: currentSession.id,
-          user_id: user.id,
-          content: aiResponse,
-          message_type: 'text',
-          sender: 'assistant',
-        })
-        .select()
-        .single();
+      // Optionally generate AI response
+      let assistantMessage: Message | null = null;
+      if (!skipAI) {
+        const aiResponse = await generateAIResponse(content);
+        const { data, error: assistantError } = await supabase
+          .from('messages')
+          .insert({
+            session_id: sessionId,
+            user_id: user.id,
+            content: aiResponse,
+            message_type: 'text',
+            sender: 'assistant',
+          })
+          .select()
+          .single();
 
-      if (assistantError) throw assistantError;
-      
-      setMessages(prev => [...prev, assistantMessage]);
+        if (assistantError) throw assistantError;
+        assistantMessage = data as Message;
+        setMessages(prev => [...prev, assistantMessage]);
+      }
       
       return assistantMessage;
     } catch (error: any) {
@@ -138,17 +202,45 @@ export const useChat = () => {
     setLoading(true);
     
     try {
-      // Build conversation history for context
-      const conversationMessages = messages.map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'assistant',
-        content: msg.content
-      }));
+      // Build conversation with a strict system instruction to enforce point-wise format
+      const systemInstruction = `You are MediTalk AI, a multi-user smart medical assistant. Detect the user type from context and answer accordingly. ALWAYS respond in a structured, numbered, point-wise format (max 5 short lines per section):
 
-      // Add the new user message
-      conversationMessages.push({
-        role: 'user',
-        content: userMessage
-      });
+When user type is Patient (friendly, simple, actionable):
+1. Do:
+2. Don’t:
+3. Medicine (if relevant):
+4. Guidance:
+5. Precaution / Emergency:
+
+When user type is Doctor (technical, professional):
+1. Symptoms:
+2. Possible causes:
+3. Medicine / Treatment:
+4. Monitoring / Protocol:
+5. Precaution / Escalation:
+
+When user type is Admin (supervisory, system-focused):
+1. Check:
+2. Action:
+3. Forward:
+4. Logs / Security:
+5. Guidance:
+
+Rules:
+- Keep each section to at most 5 concise lines.
+- Use the exact numbered headers above for the detected user type (with a colon).
+- If a section is not applicable, include the header and a single hyphen '-' on the next line.
+- For emergencies in Patient queries, clearly instruct to seek immediate professional medical help.
+- Be precise, complete, and actionable.`;
+
+      const conversationMessages = [
+        { role: 'system', content: systemInstruction },
+        ...messages.map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.content,
+        })),
+        { role: 'user', content: userMessage },
+      ];
 
       const { data, error } = await supabase.functions.invoke('medical-chat', {
         body: { messages: conversationMessages }
@@ -192,6 +284,8 @@ export const useChat = () => {
     loadMessages,
     createSession,
     sendMessage,
+    addAssistantMessage,
     setCurrentSession,
+    deleteSession,
   };
 };

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Stethoscope, MessageCircle, Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { MessageCircle, Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Logo from '@/components/Logo';
 
 const Footer = () => {
   return (
@@ -11,12 +12,7 @@ const Footer = () => {
           {/* Brand Section */}
           <div className="space-y-6">
             <div className="flex items-center space-x-2">
-              <div className="flex items-center justify-center w-10 h-10 bg-gradient-hero rounded-lg">
-                <Stethoscope className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-2xl font-bold text-white">
-                MEDITALK
-              </span>
+              <Logo size={40} showText />
             </div>
             
             <p className="text-background/80 leading-relaxed">

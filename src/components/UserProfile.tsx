@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+
 import { 
   User, 
   Mail, 
@@ -21,8 +22,9 @@ import {
   X
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ProfileData {
   full_name: string;
@@ -34,6 +36,7 @@ interface ProfileData {
   allergies: string[];
   medications: string[];
   preferred_language: string;
+  avatar_url?: string;
 }
 
 const UserProfile: React.FC = () => {
@@ -47,13 +50,16 @@ const UserProfile: React.FC = () => {
     medical_conditions: [],
     allergies: [],
     medications: [],
-    preferred_language: 'en'
+    preferred_language: 'en',
+    avatar_url: undefined,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newCondition, setNewCondition] = useState('');
   const [newAllergy, setNewAllergy] = useState('');
   const [newMedication, setNewMedication] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -84,13 +90,15 @@ const UserProfile: React.FC = () => {
           medical_conditions: existingProfile.medical_conditions || [],
           allergies: existingProfile.allergies || [],
           medications: existingProfile.medications || [],
-          preferred_language: existingProfile.preferred_language || 'en'
+          preferred_language: existingProfile.preferred_language || 'en',
+          avatar_url: existingProfile.avatar_url || (user.user_metadata as any)?.avatar_url || undefined,
         });
       } else {
         // Initialize with user email
         setProfile(prev => ({
           ...prev,
-          email: user.email || ''
+          email: user.email || '',
+          avatar_url: (user.user_metadata as any)?.avatar_url || undefined,
         }));
       }
     } catch (error) {
@@ -117,6 +125,7 @@ const UserProfile: React.FC = () => {
         allergies: profile.allergies,
         medications: profile.medications,
         preferred_language: profile.preferred_language,
+        avatar_url: profile.avatar_url,
         updated_at: new Date().toISOString()
       };
 
@@ -125,6 +134,13 @@ const UserProfile: React.FC = () => {
         .upsert(profileData, { onConflict: 'id' });
 
       if (error) throw error;
+
+      if (profile.avatar_url) {
+        const { error: metaErr } = await supabase.auth.updateUser({
+          data: { avatar_url: profile.avatar_url },
+        });
+        if (metaErr) console.warn('Failed to update avatar_url metadata:', metaErr.message);
+      }
 
       toast({
         title: "Profile Updated",
@@ -140,6 +156,55 @@ const UserProfile: React.FC = () => {
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const onAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setAvatarFile(file);
+  };
+
+  const uploadAvatar = async () => {
+    if (!user || !avatarFile) return;
+    try {
+      setUploadingAvatar(true);
+      const ext = avatarFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const filePath = `${user.id}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, avatarFile, {
+        cacheControl: '3600',
+        upsert: true,
+      });
+      if (uploadError) throw uploadError;
+
+      const { data: publicData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const publicUrl = publicData.publicUrl;
+
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+
+      const { error: metaErr } = await supabase.auth.updateUser({
+        data: { avatar_url: publicUrl },
+      });
+      if (metaErr) console.warn('Failed to update avatar_url metadata:', metaErr.message);
+
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, avatar_url: publicUrl, email: profile.email, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+      if (profileErr) console.warn('Failed to persist avatar_url in profiles:', profileErr.message);
+
+      toast({
+        title: 'Avatar updated',
+        description: 'Your profile picture has been updated.',
+      });
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      toast({
+        title: 'Avatar upload failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingAvatar(false);
+      setAvatarFile(null);
     }
   };
 
@@ -228,6 +293,25 @@ const UserProfile: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={profile.avatar_url} alt={profile.full_name || profile.email} />
+              <AvatarFallback>
+                {(profile.full_name || profile.email || 'U')
+                  .split(' ')
+                  .map((n) => n.charAt(0))
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              <Input type="file" accept="image/*" onChange={onAvatarFileChange} className="max-w-xs" />
+              <Button onClick={uploadAvatar} disabled={uploadingAvatar || !avatarFile} variant="outline" size="sm">
+                {uploadingAvatar ? 'Uploading...' : 'Upload Avatar'}
+              </Button>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="full_name">Full Name</Label>

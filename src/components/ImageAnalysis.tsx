@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
 
 interface ImageAnalysisProps {
-  onComplete: (result: string) => void;
+  onComplete: (payload: { imageDataUrl: string; result: string }) => void;
 }
 
 const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ onComplete }) => {
@@ -70,122 +70,232 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ onComplete }) => {
       
       switch (analysisType) {
         case 'skin':
-          analysisResult = `🔍 **Skin Analysis Complete**
+          analysisResult = `1. Do:
+• Clean the area gently and keep it dry
+• Use broad‑spectrum sunscreen on exposed skin
+• Track changes (size, color, border, itching/bleeding)
+• Take clear photos weekly for comparison
+• Arrange a routine dermatology check if persisting
 
-**Observations:**
-- The analyzed image shows what appears to be a common skin condition
-- No immediate signs of concerning irregularities detected
-- Coloration and texture appear within normal variations
+2. Don’t:
+• Don’t pick, scratch, or try to cut it
+• Don’t apply harsh acids or bleaching creams
+• Don’t ignore rapid growth, darkening, or bleeding
+• Don’t rely on home remedies for suspicious lesions
+• Don’t delay care if pain or ulceration appears
 
-**Recommendations:**
-- Monitor any changes in size, color, or texture
-- Consider consulting a dermatologist for professional evaluation
-- Maintain good skin hygiene and sun protection
+3. Medicine (if relevant):
+• OTC hydrocortisone 1% thin layer for itch (≤7 days)
+• Fragrance‑free moisturizer to support skin barrier
+• If acne‑like: OTC benzoyl peroxide 2.5–5% spot use
+• Avoid if allergic or if skin becomes irritated
+• Ask a pharmacist if on other treatments
 
-⚠️ **Important:** This analysis is not a medical diagnosis. Please consult with a qualified dermatologist for professional medical advice.`;
+4. Guidance:
+• What it likely shows: a common benign skin change with regular color/texture
+• Why it happens: irritation, sun exposure, or normal mole/keratosis variation
+• What to do next: document changes and schedule non‑urgent dermatology review
+• Improve photo quality: good lighting, macro focus, ruler for scale
+• Seek professional dermoscopy for definitive assessment
+
+5. Precaution / Emergency:
+• Urgent if rapidly changing, irregular edges, multi‑colors, bleeding, or new severe pain
+• Urgent if associated with systemic symptoms (fever, weight loss)
+• For eye/face lesions causing function change → urgent care
+• If immunocompromised, lower threshold to seek care
+• When in doubt, get an in‑person dermatologist evaluation`;
           break;
           
         case 'wound':
-          analysisResult = `🩹 **Wound Assessment Complete**
+          analysisResult = `1. Do:
+• Rinse with clean water/saline, pat dry
+• Apply thin antibiotic ointment (if not allergic)
+• Cover with sterile, breathable dressing; change daily
+• Elevate if on limb to reduce swelling
+• Track size, drainage, and pain daily
 
-**Observations:**
-- Wound appears to be superficial
-- No visible signs of severe infection
-- Healing process seems to be progressing normally
+2. Don’t:
+• Don’t scrub aggressively or use iodine/alcohol on healthy tissue
+• Don’t keep it wet or occluded for too long
+• Don’t reuse soiled dressings
+• Don’t pick scabs or edges
+• Don’t ignore rising pain or foul odor
 
-**Care Recommendations:**
-- Keep the wound clean and dry
-- Apply antiseptic as recommended
-- Change dressings regularly
-- Watch for signs of infection (increased redness, warmth, pus)
+3. Medicine (if relevant):
+• OTC pain relief (acetaminophen/ibuprofen if safe for you)
+• Consider hydrocolloid for superficial abrasions
+• If tetanus >10 years (or >5 with dirty wound), get booster
+• Avoid topical antibiotics if you develop rash/itch
+• Ask clinician before using steroid creams on wounds
 
-⚠️ **Seek immediate medical attention if:** Wound shows signs of infection, doesn't heal within expected timeframe, or if you experience fever.`;
+4. Guidance:
+• What it likely shows: superficial wound without severe infection signs
+• Why it happens: minor trauma/friction; normal inflammatory healing
+• What to do next: clean, protect, monitor; photo log for healing progress
+• Optimize healing: protein, hydration, avoid smoking
+• Reassess in 48–72h or sooner if concerning changes
+
+5. Precaution / Emergency:
+• Urgent if spreading redness, warmth, pus, fever, increasing severe pain
+• Urgent if deep, gaping, or contaminated (bite, soil)
+• Loss of function/numbness → urgent evaluation
+• Red streaking up limb or systemic symptoms → ER
+• Diabetes/immunosuppression: lower threshold to seek care`;
           break;
           
         case 'rash':
-          analysisResult = `🔴 **Rash Analysis Complete**
+          analysisResult = `1. Do:
+• Identify and avoid recent new products/fabrics/metals
+• Cool compress 10–15 min for itch relief
+• Use bland emollient (ceramide, petrolatum)
+• Gentle, fragrance‑free cleanser only
+• Keep nails short to prevent scratching injury
 
-**Observations:**
-- Appears to be a common skin irritation
-- Distribution pattern suggests possible contact dermatitis
-- No severe inflammatory signs detected
+2. Don’t:
+• Don’t scratch; consider cotton gloves at night
+• Don’t use fragranced lotions or harsh soaps
+• Don’t apply strong acids/peels on irritated skin
+• Don’t overheat the area (hot showers)
+• Don’t share topical meds without advice
 
-**Management Suggestions:**
-- Avoid known irritants and allergens
-- Apply cool compresses to reduce itching
-- Consider over-the-counter anti-inflammatory creams
-- Keep the area clean and dry
+3. Medicine (if relevant):
+• OTC hydrocortisone 1% thin layer 1–2×/day up to 7 days
+• Oral antihistamine at night (cetirizine/loratadine) if itchy (if safe)
+• If infected crusts: seek clinician for topical antibiotic guidance
+• Stop steroid if worsening or skin thins
+• Pregnant/breastfeeding: consult clinician first
 
-⚠️ **Consult a doctor if:** Rash spreads rapidly, is accompanied by fever, or doesn't improve with basic care.`;
+4. Guidance:
+• What it likely shows: contact dermatitis or irritant rash pattern
+• Why it happens: skin barrier reaction to allergen/irritant
+• What to do next: remove trigger, short course low‑potency steroid, moisturize
+• Patch testing via dermatologist if recurrent/unknown trigger
+• Improve photos with natural light and clear framing
+
+5. Precaution / Emergency:
+• Urgent if rash rapidly spreads, blistering, mucosal involvement, or fever
+• Facial/eye swelling, breathing difficulty → ER (possible allergy)
+• Signs of infection (pus, warmth, increasing pain) → urgent care
+• Infants/elderly/immunocompromised: lower threshold for care
+• If no improvement in 7–10 days → clinician review`;
           break;
           
         case 'eye':
-          analysisResult = `👁️ **Eye Condition Analysis Complete**
+          analysisResult = `1. Do:
+• Use preservative‑free artificial tears 4–6×/day
+• Cool compress 5–10 min for comfort
+• Practice hand/eyelid hygiene; avoid makeup/contacts for now
+• Rest eyes; follow 20‑20‑20 rule
+• Note triggers (screen time, allergens, smoke)
 
-**Observations:**
-- Mild irritation or redness noted
-- No severe inflammatory signs visible
-- Structure appears normal
+2. Don’t:
+• Don’t rub eyes or wear contacts until resolved
+• Don’t share eye drops or cosmetics
+• Don’t self‑use steroid eye drops
+• Don’t ignore worsening light sensitivity
+• Don’t drive if vision is blurred
 
-**Care Recommendations:**
-- Avoid rubbing the eyes
-- Use preservative-free artificial tears
-- Apply cool compress for comfort
-- Ensure proper eye hygiene
+3. Medicine (if relevant):
+• Artificial tears (PF) day; lubricating gel at night
+• Oral antihistamine if allergic symptoms (if safe)
+• Avoid vasoconstrictor “redness relief” drops regularly
+• Contact lens users: consider antibiotic drops if advised by clinician
+• Seek pharmacist advice for interactions
 
-⚠️ **See an eye care professional if:** Vision changes, severe pain, light sensitivity, or symptoms worsen.`;
-          break;
-          
-        default:
-          analysisResult = `🔍 **Medical Image Analysis Complete**
+4. Guidance:
+• What it likely shows: mild conjunctival irritation/redness without severe signs
+• Why it happens: dryness, allergy, or irritant exposure
+• What to do next: lubrication, trigger avoidance, short rest from contacts/screens
+• If unilateral and sticky discharge, consider bacterial—seek exam
+• Keep photos/notes if recurrent episodes
 
-**General Assessment:**
-- Image has been analyzed for visible medical concerns
-- No immediate alarming features detected
-- Further evaluation may be needed for proper diagnosis
+5. Precaution / Emergency:
+• Urgent if vision loss, severe pain, photophobia, trauma, chemical splash
+• Contact lens wearers with pain/redness → urgent eye clinic (risk of keratitis)
+• Fever with eye swelling or spreading redness → urgent care
+• New halos around lights could be serious → ER
+• Persistent symptoms >48–72h → eye professional review`;
+        break;
+        
+      default:
+        analysisResult = `1. Do:
+• Capture clear, well‑lit images from multiple angles
+• Note onset, duration, and associated symptoms
+• Compare with prior photos for changes
+• Keep the area clean and protected
+• Plan a non‑urgent clinical review if persistent
 
-**Next Steps:**
-- Document any symptoms or changes
-- Consider professional medical consultation
-- Keep monitoring the condition
+2. Don’t:
+• Don’t self‑treat aggressively without guidance
+• Don’t ignore rapid worsening or pain
+• Don’t share medications not prescribed to you
+• Don’t use harsh chemicals on the area
+• Don’t delay care if function is affected
 
-⚠️ **This is not a medical diagnosis.** Always consult with qualified healthcare professionals for proper medical evaluation and treatment.`;
+3. Medicine (if relevant):
+• OTC options may help symptom control; confirm safety for you
+• Use moisturizers/barrier creams for skin support
+• Simple analgesics for pain if appropriate
+• Stop if irritation or allergy occurs
+• Seek clinician advice for tailored therapy
+
+4. Guidance:
+• What it likely shows: no immediate alarming features in this image
+• Why it happens: common benign processes or early irritation/inflammation
+• What to do next: monitor with photos, optimize care, seek review if unsure
+• Improve image quality for future assessments (lighting, focus, scale)
+• In‑person exam provides definitive evaluation
+
+5. Precaution / Emergency:
+• Urgent if severe pain, spreading redness, discharge, fever, or function loss
+• Trauma/chemical exposure → immediate care
+• Immunocompromised/diabetes: lower threshold for help
+• Rapid changes over hours to days → urgent assessment
+• If concerned at any point, seek professional evaluation`;
       }
 
       // Create a dedicated session for image analysis
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('chat_sessions')
-        .insert({
-          user_id: user.id,
-          title: `Image Analysis - ${analysisTypes.find(t => t.type === analysisType)?.label}`,
-          session_type: 'image_analysis'
-        })
-        .select()
-        .single();
+      try {
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('chat_sessions')
+          .insert({
+            user_id: user.id,
+            title: `Image Analysis - ${analysisTypes.find(t => t.type === analysisType)?.label}`,
+            session_type: 'image_analysis'
+          })
+          .select()
+          .single();
 
-      if (sessionError) {
-        console.error('Error creating session for image analysis:', sessionError);
-        throw sessionError;
+        if (sessionError) {
+          console.error('Error creating session for image analysis:', sessionError);
+          throw sessionError;
+        }
+
+        // Save to database with proper session reference
+        const { error: insertError } = await supabase
+          .from('medical_images')
+          .insert({
+            user_id: user.id,
+            session_id: sessionData.id,
+            image_url: 'placeholder-url', // In real app, upload to storage first
+            analysis_result: { type: analysisType, result: analysisResult },
+            image_type: analysisType,
+            confidence_score: 0.75
+          });
+
+        if (insertError) {
+          console.error('Error saving image analysis:', insertError);
+        }
+      } catch (error: any) {
+        console.error('Error creating session or saving image analysis:', error);
       }
 
-      // Save to database with proper session reference
-      const { error: insertError } = await supabase
-        .from('medical_images')
-        .insert({
-          user_id: user.id,
-          session_id: sessionData.id,
-          image_url: 'placeholder-url', // In real app, upload to storage first
-          analysis_result: { type: analysisType, result: analysisResult },
-          image_type: analysisType,
-          confidence_score: 0.75
-        });
-
-      if (insertError) {
-        console.error('Error saving image analysis:', insertError);
+      if (imagePreview) {
+        onComplete({ imageDataUrl: imagePreview, result: analysisResult });
+      } else {
+        onComplete({ imageDataUrl: '', result: analysisResult });
       }
 
-      onComplete(analysisResult);
-      
       toast({
         title: "Analysis Complete",
         description: "Your image has been analyzed successfully",

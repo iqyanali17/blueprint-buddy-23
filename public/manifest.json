@@ -12,21 +12,10 @@
   "categories": ["medical", "health", "productivity"],
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "/favicon.ico",
-      "type": "image/x-icon",
-      "sizes": "192x192",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/favicon.ico",
-      "type": "image/x-icon", 
-      "sizes": "512x512",
-      "purpose": "any maskable"
+      "src": "/favicon.svg?v=2",
+      "sizes": "32x32 48x48 64x64",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "screenshots": [
@@ -37,10 +26,11 @@
       "form_factor": "wide"
     },
     {
-      "src": "/placeholder.svg", 
+      "src": "/placeholder.svg?v=1", 
       "type": "image/svg+xml",
       "sizes": "720x1280",
       "form_factor": "narrow"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }
