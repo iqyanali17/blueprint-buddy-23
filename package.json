@@ -8,7 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --host 0.0.0.0 --port 8080 --allowedHosts meditalk-ai-powered-healthcare-assistant-ht77.onrender.com"
+
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
