@@ -114,12 +114,14 @@ const UserProfile: React.FC = () => {
     try {
       setSaving(true);
 
+      const dobValue = profile.date_of_birth && profile.date_of_birth.trim() !== '' ? profile.date_of_birth : null;
+
       const profileData = {
         id: user.id,
-        email: profile.email,
+        email: profile.email || user.email || '',
         full_name: profile.full_name,
         phone_number: profile.phone_number,
-        date_of_birth: profile.date_of_birth,
+        date_of_birth: dobValue,
         emergency_contact: profile.emergency_contact,
         medical_conditions: profile.medical_conditions,
         allergies: profile.allergies,
@@ -129,29 +131,50 @@ const UserProfile: React.FC = () => {
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
+      // Try update first (safer with RLS), then insert if no row updated
+      const updateRes = await supabase
         .from('profiles')
-        .upsert(profileData, { onConflict: 'id' });
-
-      if (error) throw error;
-
-      if (profile.avatar_url) {
-        const { error: metaErr } = await supabase.auth.updateUser({
-          data: { avatar_url: profile.avatar_url },
-        });
-        if (metaErr) console.warn('Failed to update avatar_url metadata:', metaErr.message);
+        .update(profileData)
+        .eq('id', user.id);
+      if (updateRes.error) {
+        // If update blocked by RLS or row missing, attempt insert
+        const insertRes = await supabase
+          .from('profiles')
+          .insert({ ...profileData, created_at: new Date().toISOString() });
+        if (insertRes.error) throw insertRes.error;
+      } else if ((updateRes.data as any)?.length === 0) {
+        // No row updated -> insert
+        const insertRes = await supabase
+          .from('profiles')
+          .insert({ ...profileData, created_at: new Date().toISOString() });
+        if (insertRes.error) throw insertRes.error;
       }
+
+      // Update auth metadata with latest profile info for navbar/header display
+      const metadata: Record<string, any> = {};
+      if (profile.avatar_url) metadata.avatar_url = profile.avatar_url;
+      if (profile.full_name) metadata.full_name = profile.full_name;
+      if (Object.keys(metadata).length > 0) {
+        const { error: metaErr } = await supabase.auth.updateUser({ data: metadata });
+        if (metaErr) console.warn('Failed to update auth metadata:', metaErr.message);
+      }
+
+      // Refresh local profile to reflect any database-side transforms/defaults
+      await loadProfile();
 
       toast({
         title: "Profile Updated",
         description: "Your medical profile has been saved successfully.",
       });
 
+      // Navigate out of the information page (e.g., to dashboard)
+      window.location.href = '/dashboard';
+
     } catch (error: any) {
       console.error('Error saving profile:', error);
       toast({
         title: "Error Saving Profile",
-        description: error.message,
+        description: error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error)),
         variant: "destructive",
       });
     } finally {
@@ -186,10 +209,18 @@ const UserProfile: React.FC = () => {
       });
       if (metaErr) console.warn('Failed to update avatar_url metadata:', metaErr.message);
 
-      const { error: profileErr } = await supabase
+      const emailForAvatar = profile.email || user.email || '';
+      // Prefer an update first; if no row, attempt insert
+      const upd = await supabase
         .from('profiles')
-        .upsert({ id: user.id, avatar_url: publicUrl, email: profile.email, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-      if (profileErr) console.warn('Failed to persist avatar_url in profiles:', profileErr.message);
+        .update({ avatar_url: publicUrl, email: emailForAvatar, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+      if (upd.error || (upd.data as any)?.length === 0) {
+        const ins = await supabase
+          .from('profiles')
+          .insert({ id: user.id, avatar_url: publicUrl, email: emailForAvatar, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+        if (ins.error) console.warn('Failed to persist avatar_url in profiles:', ins.error.message);
+      }
 
       toast({
         title: 'Avatar updated',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, Activity, MessageSquare, Database } from 'lucide-react';
+import { Shield, Users, Activity, MessageSquare, Database, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,6 +14,33 @@ interface AdminStats {
   activeToday: number;
 }
 
+interface Presence {
+  user_id: string;
+  email: string | null;
+  username: string | null;
+  is_online: boolean;
+  last_seen: string;
+}
+
+interface UserLog {
+  id: string;
+  user_id: string;
+  email: string | null;
+  username: string | null;
+  login_time: string;
+  status: 'logged_in' | 'logged_out';
+  created_at: string;
+}
+
+interface SupportMessage {
+  id: string;
+  user_id: string;
+  email: string | null;
+  username: string | null;
+  message: string;
+  created_at: string;
+}
+
 const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -25,6 +52,9 @@ const AdminDashboard = () => {
   });
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [liveUsers, setLiveUsers] = useState<Presence[]>([]);
+  const [logs, setLogs] = useState<UserLog[]>([]);
+  const [support, setSupport] = useState<SupportMessage[]>([]);
 
   useEffect(() => {
     checkAdminStatus();
@@ -88,6 +118,27 @@ const AdminDashboard = () => {
         totalMessages: messagesRes.count || 0,
         activeToday: activeTodayCount || 0,
       });
+      // Load admin monitoring datasets
+      const [presenceRes, logsRes, supportRes] = await Promise.all([
+        (supabase as any)
+          .from('user_presence')
+          .select('*')
+          .eq('is_online', true)
+          .order('last_seen', { ascending: false }),
+        (supabase as any)
+          .from('user_logs')
+          .select('*')
+          .order('login_time', { ascending: false })
+          .limit(500),
+        (supabase as any)
+          .from('support_messages')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(500),
+      ]);
+      if (!presenceRes.error && presenceRes.data) setLiveUsers(presenceRes.data as Presence[]);
+      if (!logsRes.error && logsRes.data) setLogs(logsRes.data as UserLog[]);
+      if (!supportRes.error && supportRes.data) setSupport(supportRes.data as SupportMessage[]);
     } catch (error) {
       console.error('Error loading stats:', error);
       toast({
@@ -97,6 +148,39 @@ const AdminDashboard = () => {
       });
     }
   };
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const channel = supabase
+      .channel('realtime:admin-monitor')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_presence' } as any, (payload: any) => {
+        const row = payload.new as Presence;
+        setLiveUsers(prev => {
+          const filtered = prev.filter(p => p.user_id !== row.user_id);
+          return row.is_online ? [row, ...filtered] : filtered;
+        });
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_presence' } as any, (payload: any) => {
+        const row = payload.new as Presence;
+        setLiveUsers(prev => {
+          const others = prev.filter(p => p.user_id !== row.user_id);
+          return row.is_online ? [row, ...others] : others;
+        });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_logs' } as any, (payload: any) => {
+        const row = payload.new as UserLog;
+        setLogs(prev => [row, ...prev]);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' } as any, (payload: any) => {
+        const row = payload.new as SupportMessage;
+        setSupport(prev => [row, ...prev]);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin]);
 
   if (loading) {
     return (
@@ -172,8 +256,9 @@ const AdminDashboard = () => {
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="sessions">Sessions</TabsTrigger>
+            <TabsTrigger value="live">Live Users</TabsTrigger>
+            <TabsTrigger value="logs">Login History</TabsTrigger>
+            <TabsTrigger value="support">Support Inbox</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -203,34 +288,71 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="users" className="space-y-4">
+          <TabsContent value="live" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  View and manage registered users
-                </CardDescription>
+                <CardTitle>Currently Logged-in Users</CardTitle>
+                <CardDescription>Live list updates in real-time</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  User management features will be displayed here
-                </p>
+                <div className="space-y-2">
+                  {liveUsers.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No users online.</p>
+                  )}
+                  {liveUsers.map(u => (
+                    <div key={u.user_id} className="flex items-center justify-between border rounded-md px-3 py-2">
+                      <div>
+                        <div className="text-sm font-medium">{u.username || u.email || u.user_id}</div>
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                      </div>
+                      <div className="text-xs flex items-center gap-1"><Clock className="h-3 w-3"/> {new Date(u.last_seen).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent value="sessions" className="space-y-4">
+          <TabsContent value="logs" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Session Activity</CardTitle>
-                <CardDescription>
-                  Monitor chat sessions and interactions
-                </CardDescription>
+                <CardTitle>All Login History</CardTitle>
+                <CardDescription>Sorted by most recent</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Session activity data will be displayed here
-                </p>
+                <div className="space-y-2 max-h-[520px] overflow-auto">
+                  {logs.map(l => (
+                    <div key={l.id} className="flex items-center justify-between border rounded-md px-3 py-2">
+                      <div>
+                        <div className="text-sm font-medium">{l.username || l.email || l.user_id}</div>
+                        <div className="text-xs text-muted-foreground">{l.email} • {l.status}</div>
+                      </div>
+                      <div className="text-xs flex items-center gap-1"><Clock className="h-3 w-3"/> {new Date(l.login_time || l.created_at).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="support" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Support Inbox</CardTitle>
+                <CardDescription>Newest messages first. Updates in real-time.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 max-h-[520px] overflow-auto">
+                  {support.map(m => (
+                    <div key={m.id} className="border rounded-md p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-semibold">{m.username || m.email || m.user_id}</div>
+                        <div className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleString()}</div>
+                      </div>
+                      <div className="text-sm mt-2 whitespace-pre-wrap">{m.message}</div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, User, Menu, X, LogOut } from 'lucide-react';
+import { MessageCircle, User, Menu, X, LogOut, Bell, Clock } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { useAuth } from '@/hooks/useAuth';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,8 +14,10 @@ const Header = () => {
   const accountType = (user?.user_metadata as any)?.account_type as 'patient' | 'doctor' | 'admin' | undefined;
   const specialty = (user?.user_metadata as any)?.specialty as string | undefined;
   const roleLabel = accountType === 'doctor' ? (specialty ? `Doctor – ${specialty}` : 'Doctor') : accountType === 'admin' ? 'Admin' : accountType === 'patient' ? 'Patient' : undefined;
-  const displayName = (user?.user_metadata as any)?.full_name || user?.email || '';
+  const [profileName, setProfileName] = useState<string | undefined>(undefined);
+  const displayName = profileName || (user?.user_metadata as any)?.full_name || user?.email || '';
   const avatarUrl = (user?.user_metadata as any)?.avatar_url as string | undefined;
+  const [profileAvatar, setProfileAvatar] = useState<string | undefined>(undefined);
   const initials = displayName
     ? displayName
         .split(' ')
@@ -23,6 +26,103 @@ const Header = () => {
         .join('')
         .toUpperCase()
     : 'U';
+
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [tab, setTab] = useState<'messages' | 'logins'>('messages');
+  const [support, setSupport] = useState<any[]>([]);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [unread, setUnread] = useState(0);
+  const inboxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onClickOutside = (e: MouseEvent) => {
+      if (inboxRef.current && !inboxRef.current.contains(e.target as Node)) setInboxOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (accountType !== 'admin') return;
+    const load = async () => {
+      try {
+        const [s, l] = await Promise.all([
+          (supabase as any).from('support_messages').select('*').order('created_at', { ascending: false }).limit(50),
+          (supabase as any).from('user_logs').select('*').order('login_time', { ascending: false }).limit(50),
+        ]);
+        if (!s.error && s.data) setSupport(s.data as any[]);
+        if (!l.error && l.data) setLogs(l.data as any[]);
+      } catch (e) {
+        // ignore missing tables or permissions
+      }
+    };
+    load();
+
+    const channel = supabase
+      .channel('realtime:admin-inbox')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' } as any, (payload: any) => {
+        const row = payload.new;
+        setSupport(prev => [row, ...prev]);
+        setUnread(u => u + 1);
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_logs' } as any, (payload: any) => {
+        const row = payload.new;
+        setLogs(prev => [row, ...prev]);
+        setUnread(u => u + 1);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [accountType]);
+
+  // Keep avatar and name in sync with profiles table changes and initial fetch
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    const fetchAvatar = async () => {
+      if (!user?.id) { setProfileAvatar(undefined); return; }
+      try {
+        const { data, error } = await (supabase as any)
+          .from('profiles')
+          .select('avatar_url, full_name')
+          .eq('id', user.id)
+          .single();
+        if (!error) {
+          if (data?.avatar_url) setProfileAvatar(data.avatar_url as string);
+          if (data?.full_name) setProfileName(data.full_name as string);
+        }
+      } catch {}
+    };
+    fetchAvatar();
+
+    if (user?.id) {
+      channel = supabase
+        .channel(`realtime:profile-avatar:${user.id}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` } as any, (payload: any) => {
+          const url = payload?.new?.avatar_url as string | undefined;
+          const name = payload?.new?.full_name as string | undefined;
+          if (url) setProfileAvatar(url);
+          if (name !== undefined) setProfileName(name || undefined);
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` } as any, (payload: any) => {
+          const url = payload?.new?.avatar_url as string | undefined;
+          const name = payload?.new?.full_name as string | undefined;
+          if (url) setProfileAvatar(url);
+          if (name !== undefined) setProfileName(name || undefined);
+        })
+        .subscribe();
+    }
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  const effectiveAvatar = profileAvatar || avatarUrl;
+
+  const totalBadge = useMemo(() => unread, [unread]);
+  const fmt = (d: string | number | Date) => new Date(d).toLocaleString();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -67,7 +167,7 @@ const Header = () => {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 cursor-pointer select-none" onClick={() => (window.location.href = '/profile')}>
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={avatarUrl} alt={displayName || 'User'} />
+                    <AvatarImage src={effectiveAvatar} alt={displayName || 'User'} />
                     <AvatarFallback>{initials}</AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium">
@@ -79,13 +179,55 @@ const Header = () => {
                     </span>
                   )}
                 </div>
+                {accountType === 'admin' && (
+                  <div className="relative" ref={inboxRef}>
+                    <Button variant="outline" size="sm" onClick={() => { setInboxOpen(v=>!v); setUnread(0); }}>
+                      <Bell className="h-4 w-4 mr-2" />
+                      Inbox
+                      {totalBadge > 0 && (
+                        <span className="ml-2 inline-flex items-center justify-center text-xs rounded-full bg-primary text-primary-foreground px-2 py-0.5">{totalBadge}</span>
+                      )}
+                    </Button>
+                    {inboxOpen && (
+                      <div className="absolute right-0 mt-2 w-96 bg-background border rounded-md shadow-lg p-0 animate-in fade-in-0 zoom-in-95">
+                        <div className="px-4 py-3 border-b flex items-center justify-between">
+                          <div className="font-semibold text-sm">Inbox</div>
+                          <div className="text-xs text-muted-foreground">Real-time</div>
+                        </div>
+                        <div className="px-4 pt-3 flex gap-2">
+                          <button className={`text-xs px-2 py-1 rounded-md border ${tab==='messages'?'bg-primary text-primary-foreground':''}`} onClick={()=>setTab('messages')}>Support</button>
+                          <button className={`text-xs px-2 py-1 rounded-md border ${tab==='logins'?'bg-primary text-primary-foreground':''}`} onClick={()=>setTab('logins')}>Recent Logins</button>
+                        </div>
+                        {tab==='messages' ? (
+                          <div className="max-h-[350px] overflow-auto p-2">
+                            {support.length===0 && <div className="text-xs text-muted-foreground px-2 py-4">No messages</div>}
+                            {support.map(m => (
+                              <div key={m.id} className="px-3 py-2 hover:bg-muted/40 rounded-md">
+                                <div className="text-sm font-medium">{m.username || m.email || m.user_id}</div>
+                                <div className="text-xs text-muted-foreground">{m.email}</div>
+                                <div className="text-sm mt-1 line-clamp-2">{m.message}</div>
+                                <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="h-3 w-3" /> {fmt(m.created_at)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="max-h-[350px] overflow-auto p-2">
+                            {logs.length===0 && <div className="text-xs text-muted-foreground px-2 py-4">No login activity</div>}
+                            {logs.map(l => (
+                              <div key={l.id} className="px-3 py-2 hover:bg-muted/40 rounded-md">
+                                <div className="text-sm font-medium">{l.username || l.email || l.user_id}</div>
+                                <div className="text-xs text-muted-foreground">{l.email} • {l.status}</div>
+                                <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1"><Clock className="h-3 w-3" /> {fmt(l.login_time || l.created_at)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {accountType === 'doctor' && (
                   <Button variant="outline" size="sm" onClick={() => window.location.href = '/doctor/inbox'}>
-                    Inbox
-                  </Button>
-                )}
-                {accountType === 'admin' && (
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/admin/inbox'}>
                     Inbox
                   </Button>
                 )}
@@ -176,7 +318,7 @@ const Header = () => {
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2 px-2 py-1 cursor-pointer select-none" onClick={() => (window.location.href = '/profile')}>
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={avatarUrl} alt={displayName || 'User'} />
+                        <AvatarImage src={effectiveAvatar} alt={displayName || 'User'} />
                         <AvatarFallback>{initials}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-medium">{displayName}</span>

@@ -233,6 +233,89 @@ serve(async (req) => {
       );
     }
 
+    if (action === "direct_signup") {
+      if (!password || !fullName || !accountType) {
+        return new Response(JSON.stringify({ error: "Missing password, fullName, or accountType" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Reject if account already exists
+      const { data: existingProfile3, error: profileCheckErr3 } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email)
+        .limit(1);
+      if (profileCheckErr3) throw profileCheckErr3;
+      if (existingProfile3 && existingProfile3.length > 0) {
+        return new Response(
+          JSON.stringify({ error: "Account already exists. Please log in instead." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      // Enforce single admin account
+      if (accountType === "admin") {
+        const { data: admins2, error: adminErr2 } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("role", "admin")
+          .limit(1);
+        if (adminErr2) throw adminErr2;
+        if (admins2 && admins2.length > 0) {
+          return new Response(JSON.stringify({ error: "An Admin account already exists. Only one Admin is allowed." }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      // Create user directly with email confirmed
+      const { data: created2, error: createErr2 } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name: fullName, account_type: accountType },
+      });
+      if (createErr2) {
+        return new Response(JSON.stringify({ error: createErr2.message || "Failed to create user" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const userId2 = created2?.user?.id;
+      if (userId2) {
+        const { error: profileErr2 } = await supabase
+          .from("profiles")
+          .insert({ id: userId2, email, full_name: fullName });
+        if (profileErr2) {
+          const msg2 = profileErr2.message || "";
+          if (!/duplicate key|unique constraint/i.test(msg2)) {
+            console.warn("Profile insert failed:", msg2);
+          }
+        }
+
+        const role2 = accountType === "admin" ? "admin" : "user";
+        const { error: roleErr2 } = await supabase.from("user_roles").insert({ user_id: userId2, role: role2 });
+        if (roleErr2) console.warn("Failed to assign role:", roleErr2.message);
+      }
+
+      // Create a session (optional best-effort)
+      const { data: signInData2, error: signInErr2 } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInErr2) {
+        console.warn("Auto-login failed:", signInErr2.message);
+      }
+
+      return new Response(
+        JSON.stringify({ ok: true, session: signInData2?.session ?? null, user: signInData2?.user ?? created2?.user ?? null }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     return new Response(JSON.stringify({ error: "Unknown action" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

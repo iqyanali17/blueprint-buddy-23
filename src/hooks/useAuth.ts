@@ -9,6 +9,8 @@ export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const enablePresence = false;
+  const [presenceAvailable, setPresenceAvailable] = useState(enablePresence);
 
   useEffect(() => {
     // Get initial session
@@ -45,32 +47,116 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Presence heartbeat for live users (separate top-level effect)
+  useEffect(() => {
+    let interval: any;
+    if (!user || !presenceAvailable || !enablePresence) return;
+    const emailVal = user.email;
+    const usernameVal = (user.user_metadata as any)?.full_name || null;
+    (async () => {
+      try {
+        const { error } = await (supabase as any).from('user_presence').upsert({
+          user_id: user.id,
+          email: emailVal,
+          username: usernameVal,
+          is_online: true,
+          last_seen: new Date().toISOString(),
+        });
+        if (error) {
+          const msg = String(error?.message || '').toLowerCase();
+          if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('404')) {
+            setPresenceAvailable(false);
+            return;
+          }
+        }
+      } catch (e: any) {
+        const msg = String(e?.message || '').toLowerCase();
+        if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('404')) {
+          setPresenceAvailable(false);
+          return;
+        }
+      }
+    })();
+
+    interval = setInterval(async () => {
+      if (!presenceAvailable) return;
+      try {
+        const { error } = await (supabase as any).from('user_presence').upsert({
+          user_id: user.id,
+          email: emailVal,
+          username: usernameVal,
+          is_online: true,
+          last_seen: new Date().toISOString(),
+        });
+        if (error) {
+          const msg = String(error?.message || '').toLowerCase();
+          if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('404')) {
+            setPresenceAvailable(false);
+            clearInterval(interval);
+          }
+        }
+      } catch (e: any) {
+        const msg = String(e?.message || '').toLowerCase();
+        if (msg.includes('does not exist') || msg.includes('not found') || msg.includes('404')) {
+          setPresenceAvailable(false);
+          clearInterval(interval);
+        }
+      }
+    }, 30000);
+
+    const onUnload = async () => {
+      try {
+        if (!presenceAvailable) return;
+        await (supabase as any).from('user_presence').upsert({
+          user_id: user.id,
+          email: emailVal,
+          username: usernameVal,
+          is_online: false,
+          last_seen: new Date().toISOString(),
+        });
+      } catch {}
+    };
+    window.addEventListener('beforeunload', onUnload);
+
+    return () => {
+      if (interval) clearInterval(interval);
+      window.removeEventListener('beforeunload', onUnload);
+      // best-effort set offline on unmount
+      if (presenceAvailable && enablePresence) {
+        (supabase as any).from('user_presence').upsert({
+          user_id: user.id,
+          email: user.email,
+          username: (user.user_metadata as any)?.full_name || null,
+          is_online: false,
+          last_seen: new Date().toISOString(),
+        });
+      }
+    };
+  }, [user, presenceAvailable, enablePresence]);
+
   const signUp = async (email: string, password: string, fullName: string, accountType: AccountType = 'patient') => {
     try {
       setLoading(true);
-      // Step 1: send OTP via Edge Function (only for new account creation)
-      const { data, error } = await supabase.functions.invoke('signup-otp', {
-        body: {
-          action: 'send',
-          email,
-          fullName,
-          accountType,
+      // Create account directly with anon key; requires email confirmations disabled for immediate session
+      const { error: signUpErr } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName, account_type: accountType },
+          // If email confirmations are disabled in Supabase Auth, user will be confirmed immediately
         },
       });
+      if (signUpErr) throw signUpErr;
 
-      if (error) throw error;
-
-      const devCode = (data as any)?.dev_code as string | undefined;
-      const description = devCode
-        ? `Dev mode: use code ${devCode} (expires in 5 minutes).`
-        : "We sent a 6-digit code to your email. Enter it to complete signup.";
+      // Sign in immediately
+      const signInResult = await supabase.auth.signInWithPassword({ email, password });
+      if (signInResult.error) throw signInResult.error;
 
       toast({
-        title: "Verify your email",
-        description,
+        title: 'Account created',
+        description: 'Your MEDITALK account is ready and you are signed in.',
       });
-
-      return { data: { sent: true, dev_code: devCode }, error: null };
+      return { data: signInResult.data, error: null };
     } catch (error: any) {
       toast({
         title: "Sign up failed",
@@ -83,35 +169,8 @@ export const useAuth = () => {
     }
   };
 
-  const verifySignUp = async (email: string, code: string, password: string, fullName: string, accountType: AccountType = 'patient') => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.functions.invoke('signup-otp', {
-        body: {
-          action: 'verify',
-          email,
-          code,
-          password,
-          fullName,
-          accountType,
-        },
-      });
-      if (error) throw error;
-
-      // Auto sign-in after successful verification and account creation
-      const signInResult = await supabase.auth.signInWithPassword({ email, password });
-      if (signInResult.error) throw signInResult.error;
-      return { data: signInResult.data, error: null };
-    } catch (error: any) {
-      toast({
-        title: "Verification failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return { data: null, error };
-    } finally {
-      setLoading(false);
-    }
+  const verifySignUp = async () => {
+    return { data: null, error: new Error('Verification disabled') };
   };
 
   const signIn = async (email: string, password: string, accountType?: AccountType) => {
@@ -151,6 +210,29 @@ export const useAuth = () => {
         });
         if (metaErr) console.warn('Failed to update account_type metadata:', metaErr.message);
       }
+
+      // Log login activity and set presence online
+      try {
+        const emailVal = data.user?.email || email;
+        const usernameVal = (data.user?.user_metadata as any)?.full_name || null;
+        await (supabase as any).from('user_logs').insert({
+          user_id: userId,
+          email: emailVal,
+          username: usernameVal,
+          status: 'logged_in',
+        });
+        if (enablePresence && presenceAvailable) {
+          await (supabase as any).from('user_presence').upsert({
+            user_id: userId,
+            email: emailVal,
+            username: usernameVal,
+            is_online: true,
+            last_seen: new Date().toISOString(),
+          });
+        }
+      } catch (logErr: any) {
+        console.warn('Failed to write login logs/presence:', logErr?.message || logErr);
+      }
       return { data, error: null };
     } catch (error: any) {
       toast({
@@ -167,8 +249,32 @@ export const useAuth = () => {
   const signOut = async () => {
     try {
       setLoading(true);
+      // Capture current user before sign out
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      // Log logout and set presence offline
+      try {
+        if (currentUser?.id) {
+          await (supabase as any).from('user_logs').insert({
+            user_id: currentUser.id,
+            email: currentUser.email,
+            username: (currentUser.user_metadata as any)?.full_name || null,
+            status: 'logged_out',
+          });
+          if (enablePresence && presenceAvailable) {
+            await (supabase as any).from('user_presence').upsert({
+              user_id: currentUser.id,
+              email: currentUser.email,
+              username: (currentUser.user_metadata as any)?.full_name || null,
+              is_online: false,
+              last_seen: new Date().toISOString(),
+            });
+          }
+        }
+      } catch (logErr: any) {
+        console.warn('Failed to write logout logs/presence:', logErr?.message || logErr);
+      }
     } catch (error: any) {
       toast({
         title: "Sign out failed",

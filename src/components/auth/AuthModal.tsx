@@ -19,10 +19,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accountType, setAccountType] = useState<'patient' | 'doctor' | 'admin'>('patient');
-  const { signIn, signUp, verifySignUp, resetPassword, loading } = useAuth();
-  const [signupPhase, setSignupPhase] = useState<'form' | 'verify'>('form');
-  const [otp, setOtp] = useState('');
-  const [resendIn, setResendIn] = useState<number>(0);
+  const { signIn, signUp, resetPassword, loading } = useAuth();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,49 +38,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
     }
     const { data, error } = await signUp(email, password, fullName, accountType);
     if (data && !error) {
-      setSignupPhase('verify');
-      setResendIn(30);
-      const timer = setInterval(() => {
-        setResendIn((s) => {
-          if (s <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
-    }
-  };
-
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp) return;
-    const { data, error } = await verifySignUp(email, otp, password, fullName, accountType);
-    if (data && !error) {
       setOpen(false);
       setEmail('');
       setPassword('');
       setFullName('');
       setConfirmPassword('');
-      setOtp('');
-      setSignupPhase('form');
-    }
-  };
-
-  const handleResend = async () => {
-    if (resendIn > 0) return;
-    const { error } = await signUp(email, password, fullName, accountType);
-    if (!error) {
-      setResendIn(30);
-      const timer = setInterval(() => {
-        setResendIn((s) => {
-          if (s <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return s - 1;
-        });
-      }, 1000);
     }
   };
 
@@ -192,7 +151,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
           </TabsContent>
           
           <TabsContent value="signup" className="space-y-4">
-            {signupPhase === 'form' ? (
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="signup-role">Account Type</Label>
@@ -288,49 +246,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
                 )}
               </Button>
             </form>
-            ) : (
-            <form onSubmit={handleVerify} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="otp-code">Verify Code</Label>
-                <Input
-                  id="otp-code"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\\d{6}"
-                  placeholder="Enter 6-digit code"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, '').slice(0,6))}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">We sent a code to {email}. It expires in 5 minutes.</p>
-              </div>
-
-              <div className="flex items-center justify-between text-sm">
-                <button type="button" className="underline disabled:no-underline disabled:opacity-60" onClick={handleResend} disabled={resendIn>0}>
-                  {resendIn>0 ? `Resend in ${resendIn}s` : 'Resend code'}
-                </button>
-                <button type="button" className="underline" onClick={() => { setSignupPhase('form'); setOtp(''); }}>
-                  Change email
-                </button>
-              </div>
-
-              <Button 
-                type="submit" 
-                variant="medical" 
-                className="w-full" 
-                disabled={loading || otp.length !== 6}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifying...
-                  </>
-                ) : (
-                  'Verify & Create Account'
-                )}
-              </Button>
-            </form>
-            )}
           </TabsContent>
         </Tabs>
         
