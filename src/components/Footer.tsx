@@ -121,7 +121,7 @@ const Footer = () => {
               {[
                 { Icon: Facebook, href: '#', label: 'Facebook' },
                 { Icon: Twitter, href: '#', label: 'Twitter' },
-                { Icon: Linkedin, href: '#', label: 'LinkedIn' },
+                { Icon: Linkedin, href: 'https://www.linkedin.com/in/khwaja-iqyan-ali-17-a-', label: 'LinkedIn' },
                 { Icon: Instagram, href: '#', label: 'Instagram' }
               ].map(({ Icon, href, label }) => (
                 <a

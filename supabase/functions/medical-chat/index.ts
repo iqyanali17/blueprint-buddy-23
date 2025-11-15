@@ -1,17 +1,50 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore - Deno types are available via @types/deno
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+interface RequestBody {
+  messages: Message[];
+}
+
+serve(async (req: Request) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      } 
+    });
+  }
+
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders }
+    });
   }
 
   try {
-    const { messages } = await req.json();
+    // Parse and validate request body
+    if (!req.body) {
+      throw new Error('Request body is required');
+    }
+    
+    const requestBody = await req.json() as RequestBody;
+    if (!requestBody.messages || !Array.isArray(requestBody.messages)) {
+      throw new Error('Invalid request format: messages array is required');
+    }
+    
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -34,7 +67,7 @@ serve(async (req) => {
           },
           {
             role: "user",
-            content: messages[messages.length - 1].content
+            content: requestBody.messages[requestBody.messages.length - 1].content
           }
         ],
       }),
@@ -60,7 +93,7 @@ serve(async (req) => {
 
 The user's current emotional state is: ${sentiment}. Adjust your response to be ${sentiment === 'anxious' || sentiment === 'distressed' ? 'extra reassuring and calming' : sentiment === 'negative' ? 'supportive and empathetic' : 'professional and helpful'}.`
           },
-          ...messages,
+          ...requestBody.messages,
         ],
       }),
     });
