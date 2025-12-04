@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,11 +28,26 @@ import HealthDashboard from '@/components/HealthDashboard';
 import UserProfile from '@/components/UserProfile';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth(true, true); // Check auth on mount
   const { isAdmin } = useAdminCheck();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [chatResult, setChatResult] = useState<string>('');
+
+  // Redirect to home if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   const dashboardSections = [
     {

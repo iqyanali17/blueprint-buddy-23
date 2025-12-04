@@ -2,16 +2,51 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
+// Debug environment variables
+console.log('Environment Variables:', {
+  VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? '***' : 'NOT SET',
+  VITE_SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ? '***' : 'NOT SET',
+  NODE_ENV: import.meta.env.MODE
+});
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+if (!SUPABASE_URL) {
+  console.error('Missing VITE_SUPABASE_URL environment variable');
+}
+
+if (!SUPABASE_PUBLISHABLE_KEY) {
+  console.error('Missing VITE_SUPABASE_PUBLISHABLE_KEY environment variable');
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+// Initialize Supabase client
+export const supabase = (() => {
+  try {
+    if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+      throw new Error('Missing required Supabase environment variables');
+    }
+    
+    const client = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        storage: localStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'meditalk-web/1.0'
+        }
+      }
+    });
+    
+    console.log('Supabase client initialized successfully');
+    return client;
+  } catch (error) {
+    console.error('Failed to initialize Supabase client:', error);
+    throw error;
   }
-});
+})();

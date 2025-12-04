@@ -5,20 +5,27 @@ import { toast } from '@/hooks/use-toast';
 
 type AccountType = 'patient' | 'doctor' | 'admin';
 
-export const useAuth = () => {
+export const useAuth = (enablePresence = true, checkInitialAuth = false) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const enablePresence = false;
+  const [loading, setLoading] = useState(!!checkInitialAuth);
+  const [initialized, setInitialized] = useState(!checkInitialAuth);
   const [presenceAvailable, setPresenceAvailable] = useState(enablePresence);
 
+  // Check user on mount and auth changes
   useEffect(() => {
+    if (!checkInitialAuth) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      setInitialized(true);
     };
 
     getSession();
@@ -29,6 +36,7 @@ export const useAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        setInitialized(true);
 
         if (event === 'SIGNED_IN') {
           toast({
@@ -176,15 +184,45 @@ export const useAuth = () => {
   const signIn = async (email: string, password: string, accountType?: AccountType) => {
     try {
       setLoading(true);
-      console.log('Attempting sign in with:', { email });
+      console.log('🔑 Attempting sign in with:', { email, accountType });
+      
+      // Verify environment variables are set
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+        console.error('❌ Missing Supabase environment variables');
+        throw new Error('Authentication service is not properly configured');
+      }
+
+      console.log('🔌 Supabase URL:', import.meta.env.VITE_SUPABASE_URL ? '***' : 'NOT SET');
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      console.log('Sign in result:', { data, error });
-      if (error) throw error;
+      console.log('🔍 Sign in result:', { 
+        user: data.user ? { id: data.user.id, email: data.user.email } : null, 
+        session: !!data.session,
+        error: error ? error.message : null 
+      });
+
+      if (error) {
+        console.error('❌ Sign in error:', {
+          message: error.message,
+          name: error.name,
+          status: (error as any).status,
+          code: (error as any).code
+        });
+        
+        // More user-friendly error messages
+        let errorMessage = error.message;
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Please verify your email before signing in.';
+        }
+        
+        throw new Error(errorMessage);
+      }
       const userId = data.user?.id;
 
       // If user signs in as Admin, ensure they truly are admin

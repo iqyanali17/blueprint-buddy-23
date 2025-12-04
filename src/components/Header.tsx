@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut, loading } = useAuth(true, true);
   const accountType = (user?.user_metadata as any)?.account_type as 'patient' | 'doctor' | 'admin' | undefined;
   const specialty = (user?.user_metadata as any)?.specialty as string | undefined;
   const roleLabel = accountType === 'doctor' ? (specialty ? `Doctor – ${specialty}` : 'Doctor') : accountType === 'admin' ? 'Admin' : accountType === 'patient' ? 'Patient' : undefined;
