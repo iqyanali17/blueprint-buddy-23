@@ -110,6 +110,10 @@ const Dashboard = () => {
     setChatResult(result);
   };
 
+  const handleImageAnalysisComplete = (payload: { imageDataUrl: string; result: string }) => {
+    setChatResult(payload.result);
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -318,7 +322,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ImageAnalysis onComplete={handleChatComplete} />
+                <ImageAnalysis onComplete={handleImageAnalysisComplete} />
               </CardContent>
             </Card>
           </TabsContent>
