@@ -118,27 +118,20 @@ const AdminDashboard = () => {
         totalMessages: messagesRes.count || 0,
         activeToday: activeTodayCount || 0,
       });
-      // Load admin monitoring datasets
-      const [presenceRes, logsRes, supportRes] = await Promise.all([
-        (supabase as any)
-          .from('user_presence')
-          .select('*')
-          .eq('is_online', true)
-          .order('last_seen', { ascending: false }),
-        (supabase as any)
-          .from('user_logs')
-          .select('*')
-          .order('login_time', { ascending: false })
-          .limit(500),
-        (supabase as any)
+      // Load admin monitoring datasets - handle missing tables gracefully
+      try {
+        const supportRes = await (supabase as any)
           .from('support_messages')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(500),
-      ]);
-      if (!presenceRes.error && presenceRes.data) setLiveUsers(presenceRes.data as Presence[]);
-      if (!logsRes.error && logsRes.data) setLogs(logsRes.data as UserLog[]);
-      if (!supportRes.error && supportRes.data) setSupport(supportRes.data as SupportMessage[]);
+          .limit(500);
+        if (!supportRes.error && supportRes.data) setSupport(supportRes.data as SupportMessage[]);
+      } catch {
+        // support_messages table doesn't exist
+      }
+      
+      // Note: user_presence and user_logs tables don't exist in this schema
+      // Live users and logs features will show empty data
     } catch (error) {
       console.error('Error loading stats:', error);
       toast({
@@ -151,26 +144,10 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (!isAdmin) return;
+    
+    // Only subscribe to support_messages as other tables don't exist
     const channel = supabase
       .channel('realtime:admin-monitor')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_presence' } as any, (payload: any) => {
-        const row = payload.new as Presence;
-        setLiveUsers(prev => {
-          const filtered = prev.filter(p => p.user_id !== row.user_id);
-          return row.is_online ? [row, ...filtered] : filtered;
-        });
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_presence' } as any, (payload: any) => {
-        const row = payload.new as Presence;
-        setLiveUsers(prev => {
-          const others = prev.filter(p => p.user_id !== row.user_id);
-          return row.is_online ? [row, ...others] : others;
-        });
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_logs' } as any, (payload: any) => {
-        const row = payload.new as UserLog;
-        setLogs(prev => [row, ...prev]);
-      })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' } as any, (payload: any) => {
         const row = payload.new as SupportMessage;
         setSupport(prev => [row, ...prev]);
