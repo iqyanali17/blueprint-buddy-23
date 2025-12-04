@@ -44,30 +44,30 @@ const Header = () => {
 
   useEffect(() => {
     if (accountType !== 'admin') return;
+    
     const load = async () => {
       try {
-        const [s, l] = await Promise.all([
-          (supabase as any).from('support_messages').select('*').order('created_at', { ascending: false }).limit(50),
-          (supabase as any).from('user_logs').select('*').order('login_time', { ascending: false }).limit(50),
-        ]);
-        if (!s.error && s.data) setSupport(s.data as any[]);
-        if (!l.error && l.data) setLogs(l.data as any[]);
-      } catch (e) {
-        // ignore missing tables or permissions
+        // Try to load support messages - silently fail if table doesn't exist
+        const supportResult = await (supabase as any).from('support_messages').select('*').order('created_at', { ascending: false }).limit(50);
+        if (!supportResult.error && supportResult.data) {
+          setSupport(supportResult.data as any[]);
+        }
+      } catch {
+        // Table doesn't exist, ignore
       }
+      
+      // Note: user_logs table doesn't exist in this schema, so we skip it
+      // setLogs will remain empty
     };
+    
     load();
 
+    // Only subscribe to support_messages as user_logs doesn't exist
     const channel = supabase
       .channel('realtime:admin-inbox')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' } as any, (payload: any) => {
         const row = payload.new;
         setSupport(prev => [row, ...prev]);
-        setUnread(u => u + 1);
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_logs' } as any, (payload: any) => {
-        const row = payload.new;
-        setLogs(prev => [row, ...prev]);
         setUnread(u => u + 1);
       })
       .subscribe();
