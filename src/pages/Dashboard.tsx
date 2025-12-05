@@ -28,7 +28,7 @@ import HealthDashboard from '@/components/HealthDashboard';
 import UserProfile from '@/components/UserProfile';
 
 const Dashboard = () => {
-  const { user, loading } = useAuth(true, true); // Check auth on mount
+  const { user, loading } = useAuth();
   const { isAdmin } = useAdminCheck();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
