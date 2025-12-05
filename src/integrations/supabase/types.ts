@@ -52,6 +52,36 @@ export type Database = {
           },
         ]
       }
+      email_otps: {
+        Row: {
+          account_type: string | null
+          code_hash: string
+          created_at: string
+          email: string
+          expires_at: string
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          account_type?: string | null
+          code_hash: string
+          created_at?: string
+          email: string
+          expires_at: string
+          full_name?: string | null
+          id?: string
+        }
+        Update: {
+          account_type?: string | null
+          code_hash?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       medical_images: {
         Row: {
           analysis_result: Json | null
