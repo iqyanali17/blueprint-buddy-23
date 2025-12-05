@@ -1,61 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 type AccountType = 'patient' | 'doctor' | 'admin';
 
-// Helper to check if error indicates table doesn't exist
-const isTableNotFoundError = (error: any): boolean => {
-  if (!error) return false;
-  const msg = String(error?.message || error?.code || '').toLowerCase();
-  return msg.includes('does not exist') || 
-         msg.includes('not found') || 
-         msg.includes('could not find') ||
-         msg.includes('pgrst205') ||
-         msg.includes('404');
-};
-
-export const useAuth = (enablePresence = false, checkInitialAuth = false) => {
+export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(!!checkInitialAuth);
-  const [initialized, setInitialized] = useState(!checkInitialAuth);
-  
-  // Disable presence by default since tables don't exist
-  const presenceChecked = useRef(false);
-  const [presenceAvailable, setPresenceAvailable] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Check user on mount and auth changes
   useEffect(() => {
-    if (!checkInitialAuth) {
-      setLoading(false);
-      return;
-    }
-
-    // Get initial session
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
-      } catch (err) {
-        console.warn('Error getting session:', err);
-      } finally {
-        setLoading(false);
-        setInitialized(true);
-      }
-    };
-
-    getSession();
-
-    // Listen for auth changes
+    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        setInitialized(true);
 
         if (event === 'SIGNED_IN') {
           toast({
@@ -71,30 +33,15 @@ export const useAuth = (enablePresence = false, checkInitialAuth = false) => {
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, [checkInitialAuth]);
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-  // Optional presence heartbeat - only if tables exist and enabled
-  useEffect(() => {
-    if (!user || !enablePresence || presenceChecked.current) return;
-    
-    // Check once if presence table exists
-    const checkPresence = async () => {
-      try {
-        const { error } = await (supabase as any).from('user_presence').select('user_id').limit(1);
-        if (error && isTableNotFoundError(error)) {
-          setPresenceAvailable(false);
-        } else if (!error) {
-          setPresenceAvailable(true);
-        }
-      } catch {
-        setPresenceAvailable(false);
-      }
-      presenceChecked.current = true;
-    };
-    
-    checkPresence();
-  }, [user, enablePresence]);
+    return () => subscription.unsubscribe();
+  }, []);
 
   const signUp = async (email: string, password: string, fullName: string, accountType: AccountType = 'patient') => {
     try {
