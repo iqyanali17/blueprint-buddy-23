@@ -69,6 +69,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
 
     setOtpLoading(true);
     try {
+      // Only use Supabase function - no local fallback
       const { data, error } = await supabase.functions.invoke('signup-otp', {
         body: {
           action: 'send',
@@ -82,9 +83,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
       if (data?.error) throw new Error(data.error);
 
       setOtpSent(true);
-      if (data?.dev_code) {
-        setDevCode(data.dev_code);
-      }
+      
       toast({
         title: "Verification code sent",
         description: "Please check your email for the 6-digit verification code.",
@@ -92,7 +91,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
     } catch (err: any) {
       toast({
         title: "Failed to send code",
-        description: err.message || "Could not send verification code. Please try again.",
+        description: err.message || "Could not send verification code. Please check your email configuration.",
         variant: "destructive",
       });
     } finally {
@@ -112,6 +111,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
 
     setOtpLoading(true);
     try {
+      // Only use Supabase function - no local fallback
       const { data, error } = await supabase.functions.invoke('signup-otp', {
         body: {
           action: 'verify',
@@ -151,6 +151,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
   const handleResendOtp = async () => {
     setOtpLoading(true);
     try {
+      // Only use Supabase function - no local fallback
       const { data, error } = await supabase.functions.invoke('signup-otp', {
         body: {
           action: 'send',
@@ -163,9 +164,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      if (data?.dev_code) {
-        setDevCode(data.dev_code);
-      }
       setOtpCode('');
       toast({
         title: "Code resent",
