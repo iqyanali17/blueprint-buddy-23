@@ -13,7 +13,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const EMAIL_API_KEY = Deno.env.get("RESEND_API_KEY") || Deno.env.get("EMAIL_API_KEY") || "";
-const EMAIL_FROM = Deno.env.get("EMAIL_FROM") || "no-reply@meditalk.local";
+const EMAIL_FROM = Deno.env.get("EMAIL_FROM") || "MEDITALK <onboarding@resend.dev>";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
