@@ -111,30 +111,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
 
     setOtpLoading(true);
     try {
-      // Only use Supabase function - no local fallback
+      // Verify OTP and create account
       const { data, error } = await supabase.functions.invoke('signup-otp', {
         body: {
           action: 'verify',
           email,
           code: otpCode,
           password,
-          fullName,
-          accountType,
         },
       });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Set the session if returned
-      if (data?.session) {
-        await supabase.auth.setSession(data.session);
-      }
-
       toast({
         title: "Account created!",
-        description: "Your MEDITALK account is ready and you are signed in.",
+        description: "Your account has been created. Signing you in...",
       });
+
+      // Now sign in the user
+      const { error: signInError } = await signIn(email, password, accountType);
+      
+      if (signInError) {
+        toast({
+          title: "Sign in required",
+          description: "Account created! Please sign in with your credentials.",
+        });
+        setOtpSent(false);
+        setOtpCode('');
+        return;
+      }
+
       setOpen(false);
       resetForm();
     } catch (err: any) {
