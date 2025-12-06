@@ -180,7 +180,12 @@ serve(async (req: Request) => {
 
       if (signUpError) {
         console.error("Failed to create user:", signUpError);
-        return new Response(JSON.stringify({ error: signUpError.message }), {
+        // Provide user-friendly error message
+        let errorMessage = signUpError.message;
+        if (signUpError.message?.includes("already been registered") || (signUpError as any).code === "email_exists") {
+          errorMessage = "An account with this email already exists. Please sign in instead.";
+        }
+        return new Response(JSON.stringify({ error: errorMessage }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
