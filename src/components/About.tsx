@@ -182,7 +182,7 @@ const About = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {values.map((value, index) => (
               <Card key={index} className="group hover:shadow-medical transition-medical">
                 <CardContent className="p-6 text-center">
@@ -212,7 +212,7 @@ const About = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {team.map((member, index) => (
               <Card key={index} className="group hover:shadow-medical transition-medical">
                 <CardContent className="p-6">
