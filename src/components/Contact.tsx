@@ -176,7 +176,7 @@ const Contact = () => {
                   {/* Support Type Selection */}
                   <div className="space-y-3">
                     <label className="text-sm font-medium">Type of Inquiry</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {supportTypes.map((type) => (
                         <div
                           key={type.id}
