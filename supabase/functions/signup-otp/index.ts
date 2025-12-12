@@ -99,16 +99,36 @@ serve(async (req: Request) => {
           `,
         });
 
-        console.log("Email sent successfully:", emailResponse);
+        console.log("Resend API response:", JSON.stringify(emailResponse));
+
+        // Check if Resend returned an error
+        if (emailResponse.error) {
+          console.error("Resend error:", emailResponse.error);
+          // Clean up the stored OTP since email failed
+          await supabase.from("email_otps").delete().eq("email", email);
+          
+          // Provide helpful error message
+          let errorMessage = "Failed to send verification email";
+          if (emailResponse.error.message?.includes("verify a domain")) {
+            errorMessage = "Email service configuration issue. Please contact support or try again later.";
+          }
+          
+          return new Response(JSON.stringify({ error: errorMessage }), {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        console.log("Email sent successfully to:", email);
 
         return new Response(JSON.stringify({ ok: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-      } catch (emailError) {
+      } catch (emailError: any) {
         console.error("Failed to send email:", emailError);
         // Clean up the stored OTP since email failed
         await supabase.from("email_otps").delete().eq("email", email);
-        return new Response(JSON.stringify({ error: "Failed to send verification email" }), {
+        return new Response(JSON.stringify({ error: emailError?.message || "Failed to send verification email" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
