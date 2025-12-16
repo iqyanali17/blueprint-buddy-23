@@ -334,14 +334,17 @@ const ChatInterface = () => {
         <Card className={`w-full max-w-none rounded-none shadow-2xl border-0 bg-background`}>
           <div className={`flex flex-col h-[100dvh] md:h-[100vh]`}>
             {/* Chat Header */}
-            <div className="p-6 border-b bg-gradient-to-r from-medical/5 to-healing/5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+            <div className="p-3 sm:p-6 border-b bg-gradient-to-r from-medical/5 to-healing/5">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center space-x-2 sm:space-x-3">
                   <Sheet>
                     <SheetTrigger asChild>
-                      <Button variant="outline" size="sm" className="mr-2">History</Button>
+                      <Button variant="outline" size="sm" className="px-2 sm:px-3">
+                        <Menu className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">History</span>
+                      </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="w-80 sm:max-w-sm">
+                    <SheetContent side="left" className="w-[280px] sm:w-80 sm:max-w-sm">
                       <SheetHeader>
                         <SheetTitle>Chat History</SheetTitle>
                       </SheetHeader>
@@ -382,17 +385,17 @@ const ChatInterface = () => {
                       <div className="mt-4 text-xs text-muted-foreground text-center">© 2025 MediTalk</div>
                     </SheetContent>
                   </Sheet>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-medical to-healing flex items-center justify-center">
-                    <Bot className="h-5 w-5 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-medical to-healing flex items-center justify-center flex-shrink-0">
+                    <Bot className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">MEDITALK Assistant</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {user ? `Hello, ${user.user_metadata?.full_name || 'there'}` : 'Demo Mode'} • Always Online
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-sm sm:text-lg truncate">MEDITALK Assistant</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                      {user ? `Hello, ${user.user_metadata?.full_name || 'there'}` : 'Demo Mode'}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {user && (
                     <>
                       <LanguageSelector onLanguageChange={setSelectedLanguage} />
@@ -400,14 +403,14 @@ const ChatInterface = () => {
                         variant="outline"
                         size="sm"
                         onClick={handleStartNewChat}
-                        className="border-medical text-medical hover:bg-medical hover:text-white"
+                        className="border-medical text-medical hover:bg-medical hover:text-white text-xs sm:text-sm"
                       >
-                        <Plus className="h-4 w-4 mr-1" />
-                        New Chat
+                        <Plus className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">New Chat</span>
                       </Button>
                     </>
                   )}
-                  <Badge variant="secondary" className="bg-healing/10 text-healing border-healing/20">
+                  <Badge variant="secondary" className="bg-healing/10 text-healing border-healing/20 text-xs">
                     AI Powered
                   </Badge>
                 </div>
@@ -516,13 +519,13 @@ const ChatInterface = () => {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 border-t bg-background">
+            <div className="p-3 sm:p-6 border-t bg-background">
               {user && (
-                <div className="flex items-center space-x-4 mb-4 overflow-x-auto">
+                <div className="flex items-center gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap"
+                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
                     onClick={() => handleQuickAction('dashboard')}
                   >
                     Dashboard
@@ -530,31 +533,31 @@ const ChatInterface = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap"
+                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
                     onClick={() => handleQuickAction('symptoms')}
                   >
-                    Symptom Check
+                    Symptoms
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-healing border-healing hover:bg-healing hover:text-white whitespace-nowrap"
+                    className="text-healing border-healing hover:bg-healing hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
                     onClick={() => handleQuickAction('medications')}
                   >
-                    Medications
+                    Meds
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-primary border-primary hover:bg-primary hover:text-white whitespace-nowrap"
+                    className="text-primary border-primary hover:bg-primary hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
                     onClick={() => handleQuickAction('image')}
                   >
-                    Image Analysis
+                    Image
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-emergency border-emergency hover:bg-emergency hover:text-white whitespace-nowrap"
+                    className="text-emergency border-emergency hover:bg-emergency hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
                     onClick={() => handleQuickAction('emergency')}
                   >
                     Emergency
@@ -562,7 +565,7 @@ const ChatInterface = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-muted-foreground border-muted-foreground hover:bg-muted-foreground hover:text-white whitespace-nowrap"
+                    className="text-muted-foreground border-muted-foreground hover:bg-muted-foreground hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
                     onClick={() => handleQuickAction('profile')}
                   >
                     Profile
@@ -570,10 +573,10 @@ const ChatInterface = () => {
                 </div>
               )}
               
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                   <Input
-                    placeholder={user ? "Describe your symptoms or ask a health question..." : "Sign in to start chatting with MEDITALK..."}
+                    placeholder={user ? "Describe symptoms or ask a question..." : "Sign in to chat..."}
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
                     onKeyDown={(e) => {
@@ -582,14 +585,14 @@ const ChatInterface = () => {
                         handleSendMessage();
                       }
                     }}
-                    className="pr-20 border-medical/20 focus:border-medical"
+                    className="pr-16 sm:pr-20 border-medical/20 focus:border-medical text-sm"
                     disabled={!user}
                   />
                   {user && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                    <div className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                       <VoiceInput onTranscript={handleVoiceTranscript} />
-                      <Button variant="outline" size="icon" onClick={handleImageButtonClick}>
-                        <Camera className="h-4 w-4" />
+                      <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={handleImageButtonClick}>
+                        <Camera className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   )}
@@ -605,7 +608,7 @@ const ChatInterface = () => {
                   onClick={handleSendMessage}
                   variant="medical"
                   size="sm"
-                  className="px-6"
+                  className="px-3 sm:px-6"
                   disabled={!user || !inputMessage.trim() || loading}
                 >
                   <Send className="h-4 w-4" />
@@ -613,13 +616,12 @@ const ChatInterface = () => {
               </div>
               
               {/* Medical Disclaimer */}
-              <div className="flex items-start space-x-2 mt-4 p-3 bg-warning/5 border border-warning/20 rounded-lg">
-                <AlertCircle className="h-4 w-4 text-warning mt-0.5 flex-shrink-0" />
-                <div className="text-xs text-muted-foreground">
-                  <p className="font-medium text-warning mb-1">Medical Disclaimer</p>
-                  <p>
-                    MEDITALK provides general health information for educational purposes only. 
-                    This is not a substitute for professional medical advice, diagnosis, or treatment. 
+              <div className="flex items-start gap-2 mt-3 sm:mt-4 p-2 sm:p-3 bg-warning/5 border border-warning/20 rounded-lg">
+                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-warning mt-0.5 flex-shrink-0" />
+                <div className="text-[10px] sm:text-xs text-muted-foreground">
+                  <p className="font-medium text-warning mb-0.5 sm:mb-1">Medical Disclaimer</p>
+                  <p className="leading-relaxed">
+                    MEDITALK provides general health info for educational purposes only. 
                     Always consult qualified healthcare providers for medical concerns.
                   </p>
                 </div>

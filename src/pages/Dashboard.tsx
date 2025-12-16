@@ -138,47 +138,50 @@ const Dashboard = () => {
       {/* Header */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold">Medical Dashboard</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-xl sm:text-2xl font-bold">Medical Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
                 Welcome back, {user.user_metadata?.full_name || user.email?.split('@')[0]}
               </p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant="secondary" className="flex items-center space-x-1 text-green-600">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span>Online</span>
               </Badge>
               {isAdmin && (
-                <Button variant="outline" onClick={() => navigate('/admin')}>
-                  <Shield className="h-4 w-4 mr-2" />
-                  Admin Panel
+                <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
+                  <Shield className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Admin Panel</span>
                 </Button>
               )}
-              <Button variant="outline" onClick={() => window.location.href = '/'}>
-                Back to Home
+              <Button variant="outline" size="sm" onClick={() => window.location.href = '/'}>
+                <span className="hidden sm:inline">Back to Home</span>
+                <span className="sm:hidden">Home</span>
               </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="chat">Chat</TabsTrigger>
-            <TabsTrigger value="symptoms">Symptoms</TabsTrigger>
-            <TabsTrigger value="medications">Medications</TabsTrigger>
-            <TabsTrigger value="imaging">Imaging</TabsTrigger>
-            <TabsTrigger value="emergency">Emergency</TabsTrigger>
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-          </TabsList>
+      <div className="container mx-auto px-4 py-4 sm:py-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6">
+          <div className="overflow-x-auto -mx-4 px-4 pb-2">
+            <TabsList className="inline-flex w-max sm:grid sm:w-full sm:grid-cols-7 min-w-max">
+              <TabsTrigger value="overview" className="text-xs sm:text-sm px-3 sm:px-4">Overview</TabsTrigger>
+              <TabsTrigger value="chat" className="text-xs sm:text-sm px-3 sm:px-4">Chat</TabsTrigger>
+              <TabsTrigger value="symptoms" className="text-xs sm:text-sm px-3 sm:px-4">Symptoms</TabsTrigger>
+              <TabsTrigger value="medications" className="text-xs sm:text-sm px-3 sm:px-4">Medications</TabsTrigger>
+              <TabsTrigger value="imaging" className="text-xs sm:text-sm px-3 sm:px-4">Imaging</TabsTrigger>
+              <TabsTrigger value="emergency" className="text-xs sm:text-sm px-3 sm:px-4">Emergency</TabsTrigger>
+              <TabsTrigger value="profile" className="text-xs sm:text-sm px-3 sm:px-4">Profile</TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="overview" className="space-y-6">
+          <TabsContent value="overview" className="space-y-4 sm:space-y-6">
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center space-x-4">
@@ -223,7 +226,7 @@ const Dashboard = () => {
             </div>
 
             {/* Feature Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {dashboardSections.map((section) => (
                 <Card key={section.id} className="group hover:shadow-lg transition-all cursor-pointer" onClick={() => setActiveTab(section.id)}>
                   <CardContent className="p-6">
