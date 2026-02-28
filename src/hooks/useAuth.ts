@@ -85,11 +85,6 @@ export const useAuth = () => {
     try {
       setLoading(true);
       
-      // Verify environment variables are set
-      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
-        throw new Error('Authentication service is not properly configured');
-      }
-      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -101,6 +96,8 @@ export const useAuth = () => {
           errorMessage = 'Invalid email or password. Please try again.';
         } else if (error.message.includes('Email not confirmed')) {
           errorMessage = 'Please verify your email before signing in.';
+        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
         }
         throw new Error(errorMessage);
       }
