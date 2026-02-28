@@ -5,6 +5,49 @@ import { toast } from '@/hooks/use-toast';
 
 type AccountType = 'patient' | 'doctor' | 'admin';
 
+const AUTH_TIMEOUT_MS = 15000;
+
+const withTimeout = async <T,>(promise: PromiseLike<T>, label: string): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out. Please check your connection and try again.`));
+    }, AUTH_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([Promise.resolve(promise), timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+};
+
+const mapAuthErrorMessage = (message: string) => {
+  if (
+    message.includes('Failed to fetch') ||
+    message.includes('NetworkError') ||
+    message.includes('Load failed') ||
+    message.includes('Network request failed')
+  ) {
+    return 'Network error. Please check your internet connection and try again.';
+  }
+
+  if (message.toLowerCase().includes('timed out')) {
+    return 'Request timed out. Please try again in a moment.';
+  }
+
+  if (message.includes('Invalid login credentials')) {
+    return 'Invalid email or password. Please try again.';
+  }
+
+  if (message.includes('Email not confirmed')) {
+    return 'Please verify your email before signing in.';
+  }
+
+  return message;
+};
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -34,11 +77,17 @@ export const useAuth = () => {
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    withTimeout(supabase.auth.getSession(), 'Session check')
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+      })
+      .catch((error: any) => {
+        console.error('Session check failed:', error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -46,18 +95,27 @@ export const useAuth = () => {
   const signUp = async (email: string, password: string, fullName: string, accountType: AccountType = 'patient') => {
     try {
       setLoading(true);
-      const { error: signUpErr } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName, account_type: accountType },
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
+
+      const { error: signUpErr } = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { full_name: fullName, account_type: accountType },
+            emailRedirectTo: `${window.location.origin}/`,
+          },
+        }),
+        'Sign up request'
+      );
+
       if (signUpErr) throw signUpErr;
 
       // Sign in immediately
-      const signInResult = await supabase.auth.signInWithPassword({ email, password });
+      const signInResult = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        'Sign in request'
+      );
+
       if (signInResult.error) throw signInResult.error;
 
       toast({
@@ -67,9 +125,9 @@ export const useAuth = () => {
       return { data: signInResult.data, error: null };
     } catch (error: any) {
       toast({
-        title: "Sign up failed",
-        description: error.message,
-        variant: "destructive",
+        title: 'Sign up failed',
+        description: mapAuthErrorMessage(error?.message || 'Unable to create account right now.'),
+        variant: 'destructive',
       });
       return { data: null, error };
     } finally {
@@ -84,33 +142,32 @@ export const useAuth = () => {
   const signIn = async (email: string, password: string, accountType?: AccountType) => {
     try {
       setLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        }),
+        'Sign in request'
+      );
 
       if (error) {
-        let errorMessage = error.message;
-        if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Invalid email or password. Please try again.';
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = 'Please verify your email before signing in.';
-        } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        }
-        throw new Error(errorMessage);
+        throw new Error(mapAuthErrorMessage(error.message));
       }
-      
+
       const userId = data.user?.id;
 
       // If user signs in as Admin, ensure they truly are admin
       if (accountType === 'admin' && userId) {
-        const { data: roles, error: roleErr } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .limit(1);
+        const { data: roles, error: roleErr } = await withTimeout(
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId)
+            .limit(1),
+          'Admin role check'
+        );
+
         if (roleErr) throw roleErr;
         const isAdmin = roles && roles[0]?.role === 'admin';
         if (!isAdmin) {
@@ -129,9 +186,9 @@ export const useAuth = () => {
       return { data, error: null };
     } catch (error: any) {
       toast({
-        title: "Sign in failed",
-        description: error.message,
-        variant: "destructive",
+        title: 'Sign in failed',
+        description: mapAuthErrorMessage(error?.message || 'Unable to sign in right now.'),
+        variant: 'destructive',
       });
       return { data: null, error };
     } finally {
@@ -142,13 +199,13 @@ export const useAuth = () => {
   const signOut = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signOut();
+      const { error } = await withTimeout(supabase.auth.signOut(), 'Sign out request');
       if (error) throw error;
     } catch (error: any) {
       toast({
-        title: "Sign out failed",
-        description: error.message,
-        variant: "destructive",
+        title: 'Sign out failed',
+        description: mapAuthErrorMessage(error?.message || 'Unable to sign out right now.'),
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -157,23 +214,26 @@ export const useAuth = () => {
 
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const { error } = await withTimeout(
+        supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        }),
+        'Password reset request'
+      );
 
       if (error) throw error;
 
       toast({
-        title: "Password reset sent",
-        description: "Check your email for the password reset link.",
+        title: 'Password reset sent',
+        description: 'Check your email for the password reset link.',
       });
 
       return { error: null };
     } catch (error: any) {
       toast({
-        title: "Password reset failed",
-        description: error.message,
-        variant: "destructive",
+        title: 'Password reset failed',
+        description: mapAuthErrorMessage(error?.message || 'Unable to send reset email right now.'),
+        variant: 'destructive',
       });
       return { error };
     }
