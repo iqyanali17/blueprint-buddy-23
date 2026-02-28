@@ -1,10 +1,9 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Max-Age": "86400",
 };
@@ -47,15 +46,12 @@ serve(async (req: Request) => {
         });
       }
 
-      const resend = new Resend(resendApiKey);
       const otp = generateCode();
       const codeHash = await hashCode(otp);
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-      // Delete any existing OTP for this email
       await supabase.from("email_otps").delete().eq("email", email);
 
-      // Store the new OTP
       const { error: insertError } = await supabase.from("email_otps").insert({
         email,
         code_hash: codeHash,
@@ -72,48 +68,40 @@ serve(async (req: Request) => {
         });
       }
 
-      // Send email via Resend
       const emailFrom = Deno.env.get("EMAIL_FROM") || "MEDITALK <onboarding@resend.dev>";
       
       try {
-        const emailResponse = await resend.emails.send({
-          from: emailFrom,
-          to: [email],
-          subject: "Your MEDITALK Verification Code",
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <h1 style="color: #0ea5e9; text-align: center;">MEDITALK</h1>
-              <h2 style="text-align: center;">Email Verification</h2>
-              <p>Hello${fullName ? ` ${fullName}` : ''},</p>
-              <p>Your verification code is:</p>
-              <div style="background-color: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
-                <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #0369a1;">${otp}</span>
+        const emailResponse = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: emailFrom,
+            to: [email],
+            subject: "Your MEDITALK Verification Code",
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h1 style="color: #0ea5e9; text-align: center;">MEDITALK</h1>
+                <h2 style="text-align: center;">Email Verification</h2>
+                <p>Hello${fullName ? ` ${fullName}` : ''},</p>
+                <p>Your verification code is:</p>
+                <div style="background-color: #f0f9ff; border: 2px solid #0ea5e9; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
+                  <span style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #0369a1;">${otp}</span>
+                </div>
+                <p>This code will expire in 10 minutes.</p>
+                <p>If you didn't request this code, please ignore this email.</p>
               </div>
-              <p>This code will expire in 10 minutes.</p>
-              <p>If you didn't request this code, please ignore this email.</p>
-              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
-              <p style="color: #6b7280; font-size: 12px; text-align: center;">
-                MEDITALK - Your AI-Powered Medical Support System
-              </p>
-            </div>
-          `,
+            `,
+          }),
         });
 
-        console.log("Resend API response:", JSON.stringify(emailResponse));
-
-        // Check if Resend returned an error
-        if (emailResponse.error) {
-          console.error("Resend error:", emailResponse.error);
-          // Clean up the stored OTP since email failed
+        if (!emailResponse.ok) {
+          const errorBody = await emailResponse.text();
+          console.error("Resend error:", errorBody);
           await supabase.from("email_otps").delete().eq("email", email);
-          
-          // Provide helpful error message
-          let errorMessage = "Failed to send verification email";
-          if (emailResponse.error.message?.includes("verify a domain")) {
-            errorMessage = "Email service configuration issue. Please contact support or try again later.";
-          }
-          
-          return new Response(JSON.stringify({ error: errorMessage }), {
+          return new Response(JSON.stringify({ error: "Failed to send verification email" }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -126,7 +114,6 @@ serve(async (req: Request) => {
         });
       } catch (emailError: any) {
         console.error("Failed to send email:", emailError);
-        // Clean up the stored OTP since email failed
         await supabase.from("email_otps").delete().eq("email", email);
         return new Response(JSON.stringify({ error: emailError?.message || "Failed to send verification email" }), {
           status: 500,
