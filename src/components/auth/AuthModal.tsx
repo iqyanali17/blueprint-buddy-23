@@ -20,14 +20,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
   const [fullName, setFullName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [accountType, setAccountType] = useState<'patient' | 'doctor' | 'admin'>('patient');
-  const { signIn, signUp, resetPassword, loading } = useAuth();
+  const { signIn, signUp, resetPassword } = useAuth();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data, error } = await signIn(email, password, accountType);
-    if (data && !error) {
-      setOpen(false);
-      resetForm();
+    setIsSigningIn(true);
+    try {
+      const { data, error } = await signIn(email, password, accountType);
+      if (data && !error) {
+        setOpen(false);
+        resetForm();
+      }
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
@@ -61,10 +69,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
       return;
     }
 
-    const { data, error } = await signUp(email, password, fullName.trim(), accountType);
-    if (data && !error) {
-      setOpen(false);
-      resetForm();
+    setIsSigningUp(true);
+    try {
+      const { data, error } = await signUp(email, password, fullName.trim(), accountType);
+      if (data && !error) {
+        setOpen(false);
+        resetForm();
+      }
+    } finally {
+      setIsSigningUp(false);
     }
   };
 
@@ -84,7 +97,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
       });
       return;
     }
-    await resetPassword(email);
+
+    setIsResettingPassword(true);
+    try {
+      await resetPassword(email);
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   return (
@@ -165,9 +184,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
                   variant="link"
                   className="px-0 text-sm"
                   onClick={handleResetPassword}
-                  disabled={!email}
+                  disabled={!email || isResettingPassword}
                 >
-                  Forgot password?
+                  {isResettingPassword ? 'Sending reset link...' : 'Forgot password?'}
                 </Button>
               </div>
 
@@ -175,9 +194,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
                 type="submit"
                 variant="medical"
                 className="w-full"
-                disabled={loading}
+                disabled={isSigningIn}
               >
-                {loading ? (
+                {isSigningIn ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Signing In...
@@ -273,9 +292,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ trigger, defaultTab = 'sig
                 type="submit"
                 variant="medical"
                 className="w-full"
-                disabled={loading || password !== confirmPassword}
+                disabled={isSigningUp || password !== confirmPassword}
               >
-                {loading ? (
+                {isSigningUp ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Creating Account...

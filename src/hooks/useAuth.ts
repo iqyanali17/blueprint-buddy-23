@@ -41,6 +41,10 @@ const mapAuthErrorMessage = (message: string) => {
     return 'Invalid email or password. Please try again.';
   }
 
+  if (message.includes('User already registered')) {
+    return 'This email is already registered. Please sign in instead.';
+  }
+
   if (message.includes('Email not confirmed')) {
     return 'Please verify your email before signing in.';
   }
@@ -93,12 +97,14 @@ export const useAuth = () => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, accountType: AccountType = 'patient') => {
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       setLoading(true);
 
-      const { error: signUpErr } = await withTimeout(
+      const { data: signUpData, error: signUpErr } = await withTimeout(
         supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: {
             data: { full_name: fullName, account_type: accountType },
@@ -110,19 +116,39 @@ export const useAuth = () => {
 
       if (signUpErr) throw signUpErr;
 
-      // Sign in immediately
-      const signInResult = await withTimeout(
-        supabase.auth.signInWithPassword({ email, password }),
-        'Sign in request'
-      );
+      // If signup already returned a valid session, we are done.
+      if (signUpData?.session) {
+        toast({
+          title: 'Account created',
+          description: 'Your MEDITALK account is ready and you are signed in.',
+        });
+        return { data: signUpData, error: null };
+      }
 
-      if (signInResult.error) throw signInResult.error;
+      // Some environments need a short delay before password login works after sign-up.
+      let lastSignInError: Error | null = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
 
-      toast({
-        title: 'Account created',
-        description: 'Your MEDITALK account is ready and you are signed in.',
-      });
-      return { data: signInResult.data, error: null };
+        const signInResult = await withTimeout(
+          supabase.auth.signInWithPassword({ email: normalizedEmail, password }),
+          'Sign in request'
+        );
+
+        if (!signInResult.error) {
+          toast({
+            title: 'Account created',
+            description: 'Your MEDITALK account is ready and you are signed in.',
+          });
+          return { data: signInResult.data, error: null };
+        }
+
+        lastSignInError = signInResult.error;
+      }
+
+      throw lastSignInError || new Error('Unable to sign in right now. Please try logging in again.');
     } catch (error: any) {
       toast({
         title: 'Sign up failed',
@@ -140,12 +166,14 @@ export const useAuth = () => {
   };
 
   const signIn = async (email: string, password: string, accountType?: AccountType) => {
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       setLoading(true);
 
       const { data, error } = await withTimeout(
         supabase.auth.signInWithPassword({
-          email,
+          email: normalizedEmail,
           password,
         }),
         'Sign in request'
