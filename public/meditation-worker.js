@@ -1,11 +1,11 @@
 // Service Worker for background meditation timer
+const activeTimers = {};
+
 self.addEventListener('message', (event) => {
   if (event.data.type === 'START_TIMER') {
     const { duration, timerId } = event.data;
     
-    // Start the timer
     const timer = setTimeout(() => {
-      // Post message back to the client when timer completes
       self.clients.matchAll().then(clients => {
         clients.forEach(client => {
           client.postMessage({
@@ -16,34 +16,36 @@ self.addEventListener('message', (event) => {
         });
       });
       
-      // Show notification if permission is granted
       self.registration.showNotification('Meditation Complete', {
         body: 'Your meditation session has ended.',
-        icon: '/icon-192x192.png',
+        icon: '/meditalk-icon.svg',
         vibrate: [200, 100, 200]
       });
-      
+
+      delete activeTimers[timerId];
     }, duration);
     
-    // Store the timer ID so we can cancel it if needed
-    self.activeTimers = self.activeTimers || {};
-    self.activeTimers[timerId] = timer;
+    activeTimers[timerId] = timer;
     
-  } else if (event.data.type === 'CANCEL_TIMER' && self.activeTimers) {
-    // Cancel an active timer
+  } else if (event.data.type === 'CANCEL_TIMER') {
     const { timerId } = event.data;
-    if (self.activeTimers[timerId]) {
-      clearTimeout(self.activeTimers[timerId]);
-      delete self.activeTimers[timerId];
+    if (activeTimers[timerId]) {
+      clearTimeout(activeTimers[timerId]);
+      delete activeTimers[timerId];
     }
   }
 });
 
-// Handle notification click
-event.waitUntil(
-  self.registration.showNotification('Meditation Complete', {
-    body: 'Your meditation session has ended.',
-    icon: '/icon-192x192.png',
-    vibrate: [200, 100, 200]
-  })
-);
+// Handle notification click — focus the app window
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+      if (clients.length > 0) {
+        clients[0].focus();
+      } else {
+        self.clients.openWindow('/dashboard');
+      }
+    })
+  );
+});

@@ -110,7 +110,7 @@ const MedicationTracker: React.FC = () => {
           dosage: newMed.dosage,
           frequency: newMed.frequency,
           reminder_times: [newMed.time],
-          start_date: new Date().toISOString(),
+          start_date: new Date().toISOString().split('T')[0], // date only (YYYY-MM-DD)
           notes: newMed.notes,
           is_active: true
         })
@@ -176,6 +176,8 @@ const MedicationTracker: React.FC = () => {
   useEffect(() => {
     if (!user || medications.length === 0) return;
 
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     const runTick = () => {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
@@ -189,23 +191,21 @@ const MedicationTracker: React.FC = () => {
           if (normalizeTime(String(t).trim()) === current) {
             const key = `${med.id}-${t}`;
             if (notifiedMapRef.current[key] !== todayKey) {
+              const body = `${med.medication_name} — ${med.dosage || ''} at ${t}`.trim();
+              
               toast({
-                title: 'Medication Reminder',
-                description: `${med.medication_name} — ${med.dosage || ''} at ${t}`.trim(),
+                title: '💊 Medication Reminder',
+                description: body,
               });
               playBeep();
 
               if (typeof window !== 'undefined' && 'Notification' in window) {
                 if (Notification.permission === 'granted') {
-                  new Notification('Medication Reminder', {
-                    body: `${med.medication_name} — ${med.dosage || ''} at ${t}`.trim(),
-                  });
+                  new Notification('💊 Medication Reminder', { body, icon: '/meditalk-icon.svg' });
                 } else if (Notification.permission === 'default') {
                   Notification.requestPermission().then((perm) => {
                     if (perm === 'granted') {
-                      new Notification('Medication Reminder', {
-                        body: `${med.medication_name} — ${med.dosage || ''} at ${t}`.trim(),
-                      });
+                      new Notification('💊 Medication Reminder', { body, icon: '/meditalk-icon.svg' });
                     }
                   });
                 }
@@ -218,24 +218,23 @@ const MedicationTracker: React.FC = () => {
       });
     };
 
-    // Align first run to the start of the next minute to avoid missing exact times
+    // Align to the start of next minute for precision
     const now = new Date();
     const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+    
+    // Run immediately in case we're already at the right minute
+    runTick();
+
     const startTimeout = setTimeout(() => {
       runTick();
-      const interval = setInterval(runTick, 60_000);
-      (window as any).__medReminderInterval = interval;
+      intervalId = setInterval(runTick, 60_000);
     }, Math.max(0, msUntilNextMinute));
-
-    // Also run once immediately in case the app opened exactly at the target minute
-    runTick();
 
     return () => {
       clearTimeout(startTimeout);
-      const interval = (window as any).__medReminderInterval as number | undefined;
-      if (interval) clearInterval(interval);
+      if (intervalId) clearInterval(intervalId);
     };
-  }, [user, medications]);
+  }, [user, medications, enableSound]);
 
   // Proactively request notification permission once on mount
   useEffect(() => {
