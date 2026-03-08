@@ -1,46 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, Activity, MessageSquare, Database, CheckCircle, XCircle, UserPlus, Stethoscope, UserMinus, Crown } from 'lucide-react';
+import { Shield, Users, Activity, MessageSquare, CheckCircle, XCircle, UserPlus, Stethoscope, UserMinus, Crown, Send } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface AdminRequest {
-  id: string;
-  user_id: string;
-  email: string;
-  full_name: string | null;
-  reason: string | null;
-  status: string;
-  created_at: string;
+  id: string; user_id: string; email: string; full_name: string | null;
+  reason: string | null; status: string; created_at: string;
 }
-
-interface SupportMessage {
-  id: string;
-  user_id: string;
-  email: string | null;
-  username: string | null;
-  message: string;
-  created_at: string;
-}
-
 interface ManagedUser {
-  id: string;
-  email: string;
-  full_name: string | null;
-  account_type: string;
-  role: string;
-  created_at: string;
+  id: string; email: string; full_name: string | null;
+  account_type: string; role: string; created_at: string;
 }
-
-interface UserCounts {
-  total: number;
-  patients: number;
-  doctors: number;
-  admins: number;
+interface UserCounts { total: number; patients: number; doctors: number; admins: number; }
+interface SupportTicket {
+  id: string; user_id: string; email: string | null; username: string | null;
+  subject: string; status: string; created_at: string;
+}
+interface TicketMsg {
+  id: string; ticket_id: string; sender_id: string; sender_type: string;
+  content: string; created_at: string;
 }
 
 const AdminDashboard = () => {
@@ -48,11 +32,18 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [adminRequests, setAdminRequests] = useState<AdminRequest[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [support, setSupport] = useState<SupportMessage[]>([]);
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [userCounts, setUserCounts] = useState<UserCounts>({ total: 0, patients: 0, doctors: 0, admins: 0 });
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
+  // Support tickets
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
+  const [ticketMessages, setTicketMessages] = useState<TicketMsg[]>([]);
+  const [adminReply, setAdminReply] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const messagesEnd = useRef<HTMLDivElement>(null);
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -62,26 +53,22 @@ const AdminDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate('/'); return; }
-
+      setCurrentUserId(user.id);
       const { data: roleData, error } = await supabase
         .from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').single();
-
       if (error || !roleData) {
         toast({ title: "Access Denied", description: "You don't have admin privileges", variant: "destructive" });
         navigate('/'); return;
       }
-
       setIsAdmin(true);
-      await Promise.all([loadAdminRequests(), loadUsers(), loadSupport()]);
+      await Promise.all([loadAdminRequests(), loadUsers(), loadTickets()]);
     } catch { navigate('/'); } finally { setLoading(false); }
   };
 
   const loadUsers = async () => {
     setUsersLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-users', {
-        body: { action: 'list' },
-      });
+      const { data, error } = await supabase.functions.invoke('admin-users', { body: { action: 'list' } });
       if (error) throw error;
       setManagedUsers(data.users || []);
       setUserCounts(data.counts || { total: 0, patients: 0, doctors: 0, admins: 0 });
@@ -90,11 +77,57 @@ const AdminDashboard = () => {
     } finally { setUsersLoading(false); }
   };
 
-  const loadSupport = async () => {
-    try {
-      const supportRes = await (supabase as any).from('support_messages').select('*').order('created_at', { ascending: false }).limit(500);
-      if (!supportRes.error && supportRes.data) setSupport(supportRes.data);
-    } catch {}
+  const loadTickets = async () => {
+    const { data } = await (supabase as any).from('support_tickets').select('*').order('updated_at', { ascending: false });
+    if (data) setTickets(data);
+  };
+
+  const loadTicketMessages = async (ticketId: string) => {
+    const { data } = await (supabase as any)
+      .from('support_ticket_messages').select('*').eq('ticket_id', ticketId).order('created_at', { ascending: true });
+    if (data) setTicketMessages(data);
+  };
+
+  useEffect(() => {
+    if (selectedTicket) loadTicketMessages(selectedTicket);
+  }, [selectedTicket]);
+
+  // Realtime for ticket messages
+  useEffect(() => {
+    if (!selectedTicket) return;
+    const channel = supabase
+      .channel(`admin-ticket-${selectedTicket}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'support_ticket_messages',
+        filter: `ticket_id=eq.${selectedTicket}`,
+      } as any, (payload: any) => {
+        setTicketMessages(prev => {
+          if (prev.some(m => m.id === payload.new.id)) return prev;
+          return [...prev, payload.new];
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedTicket]);
+
+  useEffect(() => {
+    messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [ticketMessages]);
+
+  const sendAdminReply = async () => {
+    if (!currentUserId || !selectedTicket || !adminReply.trim()) return;
+    const { error } = await (supabase as any).from('support_ticket_messages').insert({
+      ticket_id: selectedTicket,
+      sender_id: currentUserId,
+      sender_type: 'admin',
+      content: adminReply.trim(),
+    });
+    if (!error) setAdminReply('');
+  };
+
+  const closeTicket = async (ticketId: string) => {
+    await (supabase as any).from('support_tickets').update({ status: 'closed' }).eq('id', ticketId);
+    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'closed' } : t));
   };
 
   const loadAdminRequests = async () => {
@@ -108,9 +141,7 @@ const AdminDashboard = () => {
   const handleAction = async (requestId: string, action: 'approve' | 'reject') => {
     setProcessingId(requestId);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-role-action', {
-        body: { requestId, action },
-      });
+      const { error } = await supabase.functions.invoke('admin-role-action', { body: { requestId, action } });
       if (error) throw error;
       toast({ title: action === 'approve' ? 'Approved!' : 'Rejected', description: `Admin request has been ${action}d.` });
       await Promise.all([loadAdminRequests(), loadUsers()]);
@@ -122,14 +153,9 @@ const AdminDashboard = () => {
   const handleRevoke = async (targetUserId: string, revokeType: 'doctor' | 'admin', email: string) => {
     setRevokingId(targetUserId + revokeType);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-users', {
-        body: { action: 'revoke', targetUserId, revokeType },
-      });
+      const { error } = await supabase.functions.invoke('admin-users', { body: { action: 'revoke', targetUserId, revokeType } });
       if (error) throw error;
-      toast({
-        title: `${revokeType === 'doctor' ? 'Doctor' : 'Admin'} role revoked`,
-        description: `${email} has been demoted to ${revokeType === 'doctor' ? 'patient' : 'regular user'}.`,
-      });
+      toast({ title: `${revokeType === 'doctor' ? 'Doctor' : 'Admin'} role revoked`, description: `${email} demoted.` });
       await loadUsers();
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to revoke role', variant: 'destructive' });
@@ -141,17 +167,16 @@ const AdminDashboard = () => {
     if (!isAdmin) return;
     const channel = supabase
       .channel('realtime:admin-requests')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_requests' } as any, () => {
-        loadAdminRequests();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' } as any, (payload: any) => {
-        setSupport(prev => [payload.new, ...prev]);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_requests' } as any, () => loadAdminRequests())
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_tickets' } as any, (payload: any) => {
+        setTickets(prev => [payload.new, ...prev]);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [isAdmin]);
 
   const pendingRequests = adminRequests.filter(r => r.status === 'pending');
+  const currentTicket = tickets.find(t => t.id === selectedTicket);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" /></div>;
   if (!isAdmin) return null;
@@ -163,16 +188,14 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-2">
             <Shield className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-            {pendingRequests.length > 0 && (
-              <Badge variant="destructive" className="ml-2">{pendingRequests.length} pending</Badge>
-            )}
+            {pendingRequests.length > 0 && <Badge variant="destructive" className="ml-2">{pendingRequests.length} pending</Badge>}
           </div>
           <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Stats cards */}
+        {/* Stats */}
         <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4 mb-8">
           {[
             { label: 'Total Users', value: userCounts.total, icon: Users, color: 'text-primary' },
@@ -190,8 +213,16 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        <Tabs defaultValue="users" className="space-y-4">
+        <Tabs defaultValue="support" className="space-y-4">
           <TabsList className="flex-wrap">
+            <TabsTrigger value="support" className="relative">
+              Support Inbox
+              {tickets.filter(t => t.status === 'open').length > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5">
+                  {tickets.filter(t => t.status === 'open').length}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="requests" className="relative">
               Admin Requests
@@ -201,10 +232,77 @@ const AdminDashboard = () => {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="support">Support Inbox</TabsTrigger>
           </TabsList>
 
-          {/* User Management Tab */}
+          {/* Support Inbox with reply */}
+          <TabsContent value="support" className="space-y-4">
+            <Card>
+              <div className="grid md:grid-cols-3 min-h-[500px]">
+                <div className="border-r p-4 space-y-2 max-h-[560px] overflow-y-auto">
+                  <h3 className="font-semibold text-sm mb-2">Tickets</h3>
+                  {tickets.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No tickets</p>}
+                  {tickets.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelectedTicket(t.id)}
+                      className={`w-full text-left rounded-lg p-3 border transition-colors ${selectedTicket === t.id ? 'bg-muted border-primary/30' : 'hover:bg-muted/50'}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold truncate">{t.username || t.email || 'Unknown'}</span>
+                        <Badge variant={t.status === 'open' ? 'default' : 'secondary'} className="text-[10px]">{t.status}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">{t.subject}</p>
+                      <p className="text-[10px] text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</p>
+                    </button>
+                  ))}
+                </div>
+                <div className="md:col-span-2 p-4 flex flex-col">
+                  {currentTicket ? (
+                    <>
+                      <div className="flex items-center justify-between mb-3 pb-3 border-b">
+                        <div>
+                          <h3 className="font-semibold">{currentTicket.username || currentTicket.email}</h3>
+                          <p className="text-xs text-muted-foreground">{currentTicket.subject} — {currentTicket.email}</p>
+                        </div>
+                        {currentTicket.status === 'open' && (
+                          <Button variant="outline" size="sm" onClick={() => closeTicket(currentTicket.id)}>Close Ticket</Button>
+                        )}
+                      </div>
+                      <div className="flex-1 overflow-y-auto space-y-3 max-h-[380px]">
+                        {ticketMessages.map(m => (
+                          <div key={m.id} className={`flex ${m.sender_type === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${m.sender_type === 'admin' ? 'bg-primary text-primary-foreground' : 'bg-muted border'}`}>
+                              {m.sender_type !== 'admin' && <p className="text-[10px] font-bold mb-0.5 opacity-80">User</p>}
+                              {m.content}
+                              <p className="text-[9px] opacity-60 mt-1">{new Date(m.created_at).toLocaleTimeString()}</p>
+                            </div>
+                          </div>
+                        ))}
+                        <div ref={messagesEnd} />
+                      </div>
+                      {currentTicket.status === 'open' && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <Input
+                            value={adminReply}
+                            onChange={e => setAdminReply(e.target.value)}
+                            placeholder="Type your reply..."
+                            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendAdminReply()}
+                          />
+                          <Button onClick={sendAdminReply} disabled={!adminReply.trim()} size="icon">
+                            <Send className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Select a ticket to view conversation</div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+
+          {/* User Management */}
           <TabsContent value="users" className="space-y-4">
             <Card>
               <CardHeader>
@@ -220,11 +318,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 max-h-[600px] overflow-auto">
-                  {managedUsers.length === 0 && (
-                    <p className="text-sm text-muted-foreground py-8 text-center">
-                      {usersLoading ? 'Loading users...' : 'No users found.'}
-                    </p>
-                  )}
+                  {managedUsers.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">{usersLoading ? 'Loading...' : 'No users.'}</p>}
                   {managedUsers.map(u => {
                     const isDoctor = u.account_type === 'doctor';
                     const isAdminUser = u.role === 'admin';
@@ -236,38 +330,20 @@ const AdminDashboard = () => {
                             <span className="text-xs text-muted-foreground truncate">{u.email}</span>
                           </div>
                           <div className="flex items-center gap-1.5 mt-1">
-                            {isAdminUser && (
-                              <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-300">Admin</Badge>
-                            )}
-                            {isDoctor && (
-                              <Badge className="text-[10px] bg-blue-100 text-blue-800 border-blue-300">Doctor</Badge>
-                            )}
-                            {!isAdminUser && !isDoctor && (
-                              <Badge variant="secondary" className="text-[10px]">Patient</Badge>
-                            )}
+                            {isAdminUser && <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-300">Admin</Badge>}
+                            {isDoctor && <Badge className="text-[10px] bg-blue-100 text-blue-800 border-blue-300">Doctor</Badge>}
+                            {!isAdminUser && !isDoctor && <Badge variant="secondary" className="text-[10px]">Patient</Badge>}
                             <span className="text-[10px] text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</span>
                           </div>
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
                           {isDoctor && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="text-xs h-7"
-                              disabled={revokingId === u.id + 'doctor'}
-                              onClick={() => handleRevoke(u.id, 'doctor', u.email)}
-                            >
+                            <Button size="sm" variant="destructive" className="text-xs h-7" disabled={revokingId === u.id + 'doctor'} onClick={() => handleRevoke(u.id, 'doctor', u.email)}>
                               <UserMinus className="h-3 w-3 mr-1" />Revoke Doctor
                             </Button>
                           )}
                           {isAdminUser && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="text-xs h-7"
-                              disabled={revokingId === u.id + 'admin'}
-                              onClick={() => handleRevoke(u.id, 'admin', u.email)}
-                            >
+                            <Button size="sm" variant="destructive" className="text-xs h-7" disabled={revokingId === u.id + 'admin'} onClick={() => handleRevoke(u.id, 'admin', u.email)}>
                               <UserMinus className="h-3 w-3 mr-1" />Revoke Admin
                             </Button>
                           )}
@@ -280,16 +356,16 @@ const AdminDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Admin Requests Tab */}
+          {/* Admin Requests */}
           <TabsContent value="requests" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" />Admin Role Requests</CardTitle>
-                <CardDescription>Users requesting admin access. Only you can approve or reject.</CardDescription>
+                <CardDescription>Only you can approve or reject.</CardDescription>
               </CardHeader>
               <CardContent>
                 {adminRequests.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-8 text-center">No admin requests yet.</p>
+                  <p className="text-sm text-muted-foreground py-8 text-center">No requests yet.</p>
                 ) : (
                   <div className="space-y-3 max-h-[520px] overflow-auto">
                     {adminRequests.map(r => (
@@ -298,16 +374,14 @@ const AdminDashboard = () => {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-semibold text-sm">{r.full_name || 'Unknown'}</span>
                             <span className="text-xs text-muted-foreground">{r.email}</span>
-                            <Badge variant={r.status === 'pending' ? 'outline' : r.status === 'approved' ? 'default' : 'destructive'} className="text-[10px]">
-                              {r.status}
-                            </Badge>
+                            <Badge variant={r.status === 'pending' ? 'outline' : r.status === 'approved' ? 'default' : 'destructive'} className="text-[10px]">{r.status}</Badge>
                           </div>
                           {r.reason && <p className="text-sm text-muted-foreground mt-1">{r.reason}</p>}
                           <p className="text-[10px] text-muted-foreground mt-1">{new Date(r.created_at).toLocaleString()}</p>
                         </div>
                         {r.status === 'pending' && (
                           <div className="flex gap-2 flex-shrink-0">
-                            <Button size="sm" variant="default" disabled={processingId === r.id} onClick={() => handleAction(r.id, 'approve')}>
+                            <Button size="sm" disabled={processingId === r.id} onClick={() => handleAction(r.id, 'approve')}>
                               <CheckCircle className="h-3.5 w-3.5 mr-1" />Approve
                             </Button>
                             <Button size="sm" variant="destructive" disabled={processingId === r.id} onClick={() => handleAction(r.id, 'reject')}>
@@ -319,27 +393,6 @@ const AdminDashboard = () => {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Support Tab */}
-          <TabsContent value="support" className="space-y-4">
-            <Card>
-              <CardHeader><CardTitle>Support Inbox</CardTitle><CardDescription>Newest messages first</CardDescription></CardHeader>
-              <CardContent>
-                <div className="space-y-3 max-h-[520px] overflow-auto">
-                  {support.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No messages</p>}
-                  {support.map(m => (
-                    <div key={m.id} className="border rounded-md p-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold">{m.username || m.email || m.user_id}</span>
-                        <span className="text-xs text-muted-foreground">{new Date(m.created_at).toLocaleString()}</span>
-                      </div>
-                      <div className="text-sm mt-2 whitespace-pre-wrap">{m.message}</div>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
