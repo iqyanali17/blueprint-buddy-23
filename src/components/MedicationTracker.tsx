@@ -110,7 +110,7 @@ const MedicationTracker: React.FC = () => {
           dosage: newMed.dosage,
           frequency: newMed.frequency,
           reminder_times: [newMed.time],
-          start_date: new Date().toISOString(),
+          start_date: new Date().toISOString().split('T')[0], // date only (YYYY-MM-DD)
           notes: newMed.notes,
           is_active: true
         })
