@@ -226,16 +226,13 @@ const Header = () => {
                 )}
 
                 {accountType === 'doctor' && (
-                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => (window.location.href = '/doctor/inbox')}>
-                    <Bell className="h-3.5 w-3.5 mr-1" />Inbox
+                  <Button variant="outline" size="icon" className="relative h-8 w-8" onClick={() => (window.location.href = '/doctor/inbox')} title="Doctor Inbox">
+                    <Bell className="h-4 w-4" />
                   </Button>
                 )}
 
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={signOut} disabled={loading} title="Sign Out">
                   <LogOut className="h-4 w-4" />
-                </Button>
-                <Button variant="hero" size="sm" className="h-8 text-xs" onClick={() => (window.location.href = '/dashboard')}>
-                  <LayoutDashboard className="h-3.5 w-3.5 mr-1" />Dashboard
                 </Button>
                 <ThemeToggle />
               </>
