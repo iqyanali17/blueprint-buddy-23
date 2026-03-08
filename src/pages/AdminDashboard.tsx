@@ -183,14 +183,14 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-            {pendingRequests.length > 0 && <Badge variant="destructive" className="ml-2">{pendingRequests.length} pending</Badge>}
+       <header className="border-b">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+            <h1 className="text-lg sm:text-2xl font-bold truncate">Admin Dashboard</h1>
+            {pendingRequests.length > 0 && <Badge variant="destructive" className="ml-1 sm:ml-2 flex-shrink-0">{pendingRequests.length} pending</Badge>}
           </div>
-          <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+          <Button size="sm" className="flex-shrink-0 text-xs sm:text-sm" onClick={() => navigate('/dashboard')}>Back</Button>
         </div>
       </header>
 
