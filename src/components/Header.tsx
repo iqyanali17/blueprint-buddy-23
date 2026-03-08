@@ -294,6 +294,20 @@ const Header = () => {
                   <LayoutDashboard className="h-4 w-4 text-primary" />Dashboard
                 </button>
 
+                <button
+                  onClick={() => { setIsMenuOpen(false); window.location.href = '/support'; }}
+                  className="flex items-center gap-2 w-full h-11 px-3 rounded-lg text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
+                >
+                  <MessageCircle className="h-4 w-4 text-primary" />Contact Admin
+                </button>
+
+                <button
+                  onClick={() => { setIsMenuOpen(false); window.location.href = '/doctor-chat'; }}
+                  className="flex items-center gap-2 w-full h-11 px-3 rounded-lg text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
+                >
+                  <Stethoscope className="h-4 w-4 text-primary" />Chat with Doctor
+                </button>
+
                 {accountType === 'doctor' && (
                   <button
                     onClick={() => { setIsMenuOpen(false); window.location.href = '/doctor/inbox'; }}
