@@ -25,13 +25,6 @@ import {
   Bell, 
   Activity, 
   User, 
-  AlertCircle,
-  Heart,
-  Calendar,
-  FileText,
-  Settings,
-  Shield
-} from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { supabase } from '@/integrations/supabase/client';
