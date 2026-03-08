@@ -202,12 +202,37 @@ export const useChat = () => {
     setLoading(true);
     
     try {
+      // Fetch user profile for personalized context
+      let profileContext = '';
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, date_of_birth, medical_conditions, allergies, medications, emergency_contact')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          const parts: string[] = [];
+          if (profile.full_name) parts.push(`Name: ${profile.full_name}`);
+          if (profile.date_of_birth) {
+            const age = Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000);
+            parts.push(`Age: ${age} years`);
+          }
+          if (profile.medical_conditions?.length) parts.push(`Known conditions: ${profile.medical_conditions.join(', ')}`);
+          if (profile.allergies?.length) parts.push(`Allergies: ${profile.allergies.join(', ')}`);
+          if (profile.medications?.length) parts.push(`Current medications: ${profile.medications.join(', ')}`);
+          if (parts.length > 0) {
+            profileContext = `\n\n--- PATIENT PROFILE (use this to personalize your response, warn about drug interactions/allergy conflicts) ---\n${parts.join('\n')}\n---`;
+          }
+        }
+      }
+
       // Build conversation with a strict system instruction to enforce point-wise format
       const systemInstruction = `You are MediTalk AI, a multi-user smart medical assistant. Detect the user type from context and answer accordingly. ALWAYS respond in a structured, numbered, point-wise format (max 5 short lines per section):
 
 When user type is Patient (friendly, simple, actionable):
 1. Do:
-2. Don’t:
+2. Don't:
 3. Medicine (if relevant):
 4. Guidance:
 5. Precaution / Emergency:
@@ -231,7 +256,9 @@ Rules:
 - Use the exact numbered headers above for the detected user type (with a colon).
 - If a section is not applicable, include the header and a single hyphen '-' on the next line.
 - For emergencies in Patient queries, clearly instruct to seek immediate professional medical help.
-- Be precise, complete, and actionable.`;
+- Be precise, complete, and actionable.
+- IMPORTANT: If the patient profile includes allergies or current medications, ALWAYS check for conflicts/interactions with any medicine you suggest and warn clearly.
+- Address the user by name when their profile is available.${profileContext}`;
 
       const conversationMessages = [
         { role: 'system', content: systemInstruction },
