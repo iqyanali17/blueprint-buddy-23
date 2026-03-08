@@ -250,7 +250,7 @@ const Header = () => {
 
       {/* Mobile slide-down menu - rendered outside header to avoid stacking context issues */}
       {isMenuOpen && (
-        <div className="md:hidden fixed inset-x-0 top-14 sm:top-16 bottom-0 z-[60] bg-background overflow-y-auto animate-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden fixed inset-x-0 top-14 sm:top-16 bottom-0 z-40 bg-background overflow-y-auto animate-in slide-in-from-top-2 duration-200">
           <div className="container mx-auto px-4 py-4 space-y-1">
             {/* User profile card in mobile menu */}
             {user && (
@@ -340,25 +340,21 @@ const Header = () => {
               </div>
             ) : (
               <div className="space-y-2 pt-1">
-                <div onClick={() => setIsMenuOpen(false)}>
-                  <AuthModal
-                    trigger={
-                      <Button variant="outline" className="w-full justify-center h-11">
-                        <User className="h-4 w-4 mr-2" />Sign In
-                      </Button>
-                    }
-                  />
-                </div>
-                <div onClick={() => setIsMenuOpen(false)}>
-                  <AuthModal
-                    trigger={
-                      <Button variant="hero" className="w-full justify-center h-11">
-                        <MessageCircle className="h-4 w-4 mr-2" />Start Chat
-                      </Button>
-                    }
-                    defaultTab="signup"
-                  />
-                </div>
+                <AuthModal
+                  trigger={
+                    <Button variant="outline" className="w-full justify-center h-11">
+                      <User className="h-4 w-4 mr-2" />Sign In
+                    </Button>
+                  }
+                />
+                <AuthModal
+                  trigger={
+                    <Button variant="hero" className="w-full justify-center h-11">
+                      <MessageCircle className="h-4 w-4 mr-2" />Start Chat
+                    </Button>
+                  }
+                  defaultTab="signup"
+                />
               </div>
             )}
           </div>
