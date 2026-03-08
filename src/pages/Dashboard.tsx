@@ -6,25 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  MessageCircle, 
-  Camera, 
-  Bell, 
-  Activity, 
-  User, 
-  AlertCircle,
-  Heart,
-  Calendar,
-  FileText,
-  Settings,
-  Shield,
-  ShieldCheck,
-  Clock
+  MessageCircle, Camera, Bell, Activity, User, AlertCircle,
+  Heart, Calendar, Shield, ShieldCheck, Clock
 } from 'lucide-react';
-  MessageCircle, 
-  Camera, 
-  Bell, 
-  Activity, 
-  User, 
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
 import { supabase } from '@/integrations/supabase/client';
