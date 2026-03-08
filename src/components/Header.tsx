@@ -132,7 +132,7 @@ const Header = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-3 lg:gap-4 xl:gap-6">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
             {!user && navLinks.map(link => (
               <a key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 {link.label}
