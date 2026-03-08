@@ -214,20 +214,20 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="support" className="space-y-4">
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="support" className="relative">
+          <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="support" className="relative flex-1 min-w-[100px] text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
               Support Inbox
               {tickets.filter(t => t.status === 'open').length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5">
+                <span className="ml-1 sm:ml-1.5 inline-flex items-center justify-center h-4 sm:h-5 min-w-[16px] sm:min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[9px] sm:text-[10px] px-1">
                   {tickets.filter(t => t.status === 'open').length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="users">User Management</TabsTrigger>
-            <TabsTrigger value="requests" className="relative">
+            <TabsTrigger value="users" className="flex-1 min-w-[100px] text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">User Management</TabsTrigger>
+            <TabsTrigger value="requests" className="relative flex-1 min-w-[100px] text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
               Admin Requests
               {pendingRequests.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5">
+                <span className="ml-1 sm:ml-1.5 inline-flex items-center justify-center h-4 sm:h-5 min-w-[16px] sm:min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[9px] sm:text-[10px] px-1">
                   {pendingRequests.length}
                 </span>
               )}
