@@ -27,6 +27,47 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [chatResult, setChatResult] = useState<string>('');
+  const { toast } = useToast();
+
+  // Admin request state
+  const [adminRequestStatus, setAdminRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected' | 'loading'>('loading');
+  const [adminReason, setAdminReason] = useState('');
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const checkRequest = async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from('admin_requests').select('status').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1);
+        if (data && data.length > 0) {
+          setAdminRequestStatus(data[0].status);
+        } else {
+          setAdminRequestStatus('none');
+        }
+      } catch { setAdminRequestStatus('none'); }
+    };
+    checkRequest();
+  }, [user]);
+
+  const submitAdminRequest = async () => {
+    if (!user) return;
+    setSubmittingRequest(true);
+    try {
+      const { error } = await (supabase as any).from('admin_requests').insert({
+        user_id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || '',
+        reason: adminReason || null,
+      });
+      if (error) throw error;
+      setAdminRequestStatus('pending');
+      setAdminReason('');
+      toast({ title: 'Request Sent', description: 'Your admin access request has been submitted for review.' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to submit request', variant: 'destructive' });
+    } finally { setSubmittingRequest(false); }
+  };
 
   // Redirect to home if not authenticated
   useEffect(() => {
