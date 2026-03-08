@@ -34,6 +34,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import ChatInterface from '@/components/ChatInterface';
 import SymptomChecker from '@/components/SymptomChecker';
 import MedicationTracker from '@/components/MedicationTracker';
