@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, Activity, MessageSquare, Database, Clock, CheckCircle, XCircle, UserPlus } from 'lucide-react';
+import { Shield, Users, Activity, MessageSquare, Database, CheckCircle, XCircle, UserPlus, Stethoscope, UserMinus, Crown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface AdminStats {
-  totalUsers: number;
-  totalSessions: number;
-  totalMessages: number;
-  activeToday: number;
-}
 
 interface AdminRequest {
   id: string;
@@ -34,13 +27,32 @@ interface SupportMessage {
   created_at: string;
 }
 
+interface ManagedUser {
+  id: string;
+  email: string;
+  full_name: string | null;
+  account_type: string;
+  role: string;
+  created_at: string;
+}
+
+interface UserCounts {
+  total: number;
+  patients: number;
+  doctors: number;
+  admins: number;
+}
+
 const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<AdminStats>({ totalUsers: 0, totalSessions: 0, totalMessages: 0, activeToday: 0 });
   const [adminRequests, setAdminRequests] = useState<AdminRequest[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [support, setSupport] = useState<SupportMessage[]>([]);
+  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
+  const [userCounts, setUserCounts] = useState<UserCounts>({ total: 0, patients: 0, doctors: 0, admins: 0 });
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [usersLoading, setUsersLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -60,36 +72,29 @@ const AdminDashboard = () => {
       }
 
       setIsAdmin(true);
-      await loadStats();
-      await loadAdminRequests();
+      await Promise.all([loadAdminRequests(), loadUsers(), loadSupport()]);
     } catch { navigate('/'); } finally { setLoading(false); }
   };
 
-  const loadStats = async () => {
+  const loadUsers = async () => {
+    setUsersLoading(true);
     try {
-      const [usersRes, sessionsRes, messagesRes] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('chat_sessions').select('id', { count: 'exact', head: true }),
-        supabase.from('messages').select('id', { count: 'exact', head: true }),
-      ]);
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      const { count: activeTodayCount } = await supabase
-        .from('chat_sessions').select('id', { count: 'exact', head: true }).gte('created_at', today.toISOString());
-
-      setStats({
-        totalUsers: usersRes.count || 0,
-        totalSessions: sessionsRes.count || 0,
-        totalMessages: messagesRes.count || 0,
-        activeToday: activeTodayCount || 0,
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'list' },
       });
-
-      try {
-        const supportRes = await (supabase as any).from('support_messages').select('*').order('created_at', { ascending: false }).limit(500);
-        if (!supportRes.error && supportRes.data) setSupport(supportRes.data);
-      } catch {}
+      if (error) throw error;
+      setManagedUsers(data.users || []);
+      setUserCounts(data.counts || { total: 0, patients: 0, doctors: 0, admins: 0 });
     } catch {
-      toast({ title: "Error loading statistics", description: "Could not load dashboard data", variant: "destructive" });
-    }
+      toast({ title: "Error", description: "Could not load users", variant: "destructive" });
+    } finally { setUsersLoading(false); }
+  };
+
+  const loadSupport = async () => {
+    try {
+      const supportRes = await (supabase as any).from('support_messages').select('*').order('created_at', { ascending: false }).limit(500);
+      if (!supportRes.error && supportRes.data) setSupport(supportRes.data);
+    } catch {}
   };
 
   const loadAdminRequests = async () => {
@@ -108,10 +113,27 @@ const AdminDashboard = () => {
       });
       if (error) throw error;
       toast({ title: action === 'approve' ? 'Approved!' : 'Rejected', description: `Admin request has been ${action}d.` });
-      await loadAdminRequests();
+      await Promise.all([loadAdminRequests(), loadUsers()]);
     } catch (err: any) {
       toast({ title: 'Error', description: err.message || 'Failed to process request', variant: 'destructive' });
     } finally { setProcessingId(null); }
+  };
+
+  const handleRevoke = async (targetUserId: string, revokeType: 'doctor' | 'admin', email: string) => {
+    setRevokingId(targetUserId + revokeType);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'revoke', targetUserId, revokeType },
+      });
+      if (error) throw error;
+      toast({
+        title: `${revokeType === 'doctor' ? 'Doctor' : 'Admin'} role revoked`,
+        description: `${email} has been demoted to ${revokeType === 'doctor' ? 'patient' : 'regular user'}.`,
+      });
+      await loadUsers();
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to revoke role', variant: 'destructive' });
+    } finally { setRevokingId(null); }
   };
 
   // Realtime for admin requests
@@ -153,23 +175,24 @@ const AdminDashboard = () => {
         {/* Stats cards */}
         <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4 mb-8">
           {[
-            { label: 'Total Users', value: stats.totalUsers, icon: Users },
-            { label: 'Total Sessions', value: stats.totalSessions, icon: Database },
-            { label: 'Total Messages', value: stats.totalMessages, icon: MessageSquare },
-            { label: 'Active Today', value: stats.activeToday, icon: Activity },
+            { label: 'Total Users', value: userCounts.total, icon: Users, color: 'text-primary' },
+            { label: 'Patients', value: userCounts.patients, icon: Activity, color: 'text-green-600' },
+            { label: 'Doctors', value: userCounts.doctors, icon: Stethoscope, color: 'text-blue-600' },
+            { label: 'Admins', value: userCounts.admins, icon: Crown, color: 'text-amber-600' },
           ].map(s => (
             <Card key={s.label}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{s.label}</CardTitle>
-                <s.icon className="h-4 w-4 text-muted-foreground" />
+                <s.icon className={`h-4 w-4 ${s.color}`} />
               </CardHeader>
               <CardContent><div className="text-2xl font-bold">{s.value}</div></CardContent>
             </Card>
           ))}
         </div>
 
-        <Tabs defaultValue="requests" className="space-y-4">
+        <Tabs defaultValue="users" className="space-y-4">
           <TabsList className="flex-wrap">
+            <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="requests" className="relative">
               Admin Requests
               {pendingRequests.length > 0 && (
@@ -178,9 +201,84 @@ const AdminDashboard = () => {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="support">Support Inbox</TabsTrigger>
           </TabsList>
+
+          {/* User Management Tab */}
+          <TabsContent value="users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />All Users</CardTitle>
+                    <CardDescription>Manage doctors and admins. Revoke roles at any time.</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={loadUsers} disabled={usersLoading}>
+                    {usersLoading ? 'Loading...' : 'Refresh'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[600px] overflow-auto">
+                  {managedUsers.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-8 text-center">
+                      {usersLoading ? 'Loading users...' : 'No users found.'}
+                    </p>
+                  )}
+                  {managedUsers.map(u => {
+                    const isDoctor = u.account_type === 'doctor';
+                    const isAdminUser = u.role === 'admin';
+                    return (
+                      <div key={u.id} className="border rounded-lg p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm truncate">{u.full_name || 'Unknown'}</span>
+                            <span className="text-xs text-muted-foreground truncate">{u.email}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {isAdminUser && (
+                              <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-300">Admin</Badge>
+                            )}
+                            {isDoctor && (
+                              <Badge className="text-[10px] bg-blue-100 text-blue-800 border-blue-300">Doctor</Badge>
+                            )}
+                            {!isAdminUser && !isDoctor && (
+                              <Badge variant="secondary" className="text-[10px]">Patient</Badge>
+                            )}
+                            <span className="text-[10px] text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                          {isDoctor && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="text-xs h-7"
+                              disabled={revokingId === u.id + 'doctor'}
+                              onClick={() => handleRevoke(u.id, 'doctor', u.email)}
+                            >
+                              <UserMinus className="h-3 w-3 mr-1" />Revoke Doctor
+                            </Button>
+                          )}
+                          {isAdminUser && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="text-xs h-7"
+                              disabled={revokingId === u.id + 'admin'}
+                              onClick={() => handleRevoke(u.id, 'admin', u.email)}
+                            >
+                              <UserMinus className="h-3 w-3 mr-1" />Revoke Admin
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Admin Requests Tab */}
           <TabsContent value="requests" className="space-y-4">
@@ -221,23 +319,6 @@ const AdminDashboard = () => {
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4">
-            <Card>
-              <CardHeader><CardTitle>System Overview</CardTitle><CardDescription>Key metrics and system health</CardDescription></CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {['Platform Status', 'Database Status', 'AI Service'].map(label => (
-                    <div key={label} className="flex justify-between items-center">
-                      <span className="text-sm">{label}</span>
-                      <span className="text-sm font-medium text-green-600">Operational</span>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </TabsContent>
