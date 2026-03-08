@@ -183,14 +183,14 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-            {pendingRequests.length > 0 && <Badge variant="destructive" className="ml-2">{pendingRequests.length} pending</Badge>}
+       <header className="border-b">
+        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Shield className="h-5 w-5 sm:h-6 sm:w-6 text-primary flex-shrink-0" />
+            <h1 className="text-lg sm:text-2xl font-bold truncate">Admin Dashboard</h1>
+            {pendingRequests.length > 0 && <Badge variant="destructive" className="ml-1 sm:ml-2 flex-shrink-0">{pendingRequests.length} pending</Badge>}
           </div>
-          <Button onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+          <Button size="sm" className="flex-shrink-0 text-xs sm:text-sm" onClick={() => navigate('/dashboard')}>Back</Button>
         </div>
       </header>
 
@@ -214,20 +214,20 @@ const AdminDashboard = () => {
         </div>
 
         <Tabs defaultValue="support" className="space-y-4">
-          <TabsList className="flex-wrap">
-            <TabsTrigger value="support" className="relative">
+          <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="support" className="relative flex-1 min-w-[100px] text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
               Support Inbox
               {tickets.filter(t => t.status === 'open').length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5">
+                <span className="ml-1 sm:ml-1.5 inline-flex items-center justify-center h-4 sm:h-5 min-w-[16px] sm:min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[9px] sm:text-[10px] px-1">
                   {tickets.filter(t => t.status === 'open').length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="users">User Management</TabsTrigger>
-            <TabsTrigger value="requests" className="relative">
+            <TabsTrigger value="users" className="flex-1 min-w-[100px] text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">User Management</TabsTrigger>
+            <TabsTrigger value="requests" className="relative flex-1 min-w-[100px] text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2">
               Admin Requests
               {pendingRequests.length > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center h-5 min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[10px] px-1.5">
+                <span className="ml-1 sm:ml-1.5 inline-flex items-center justify-center h-4 sm:h-5 min-w-[16px] sm:min-w-[20px] rounded-full bg-destructive text-destructive-foreground text-[9px] sm:text-[10px] px-1">
                   {pendingRequests.length}
                 </span>
               )}
