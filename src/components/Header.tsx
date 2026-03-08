@@ -248,7 +248,7 @@ const Header = () => {
 
       {/* Mobile slide-down menu */}
       {isMenuOpen && (
-        <div className="md:hidden fixed inset-x-0 top-14 sm:top-16 bottom-0 z-40 bg-background/98 backdrop-blur-sm overflow-y-auto animate-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden fixed inset-x-0 top-14 sm:top-16 bottom-0 z-[60] bg-background backdrop-blur-sm overflow-y-auto animate-in slide-in-from-top-2 duration-200">
           <div className="container mx-auto px-4 py-4 space-y-1">
             {/* User profile card in mobile menu */}
             {user && (
