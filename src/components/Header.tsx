@@ -132,12 +132,35 @@ const Header = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-            {navLinks.map(link => (
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
+            {!user && navLinks.map(link => (
               <a key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 {link.label}
               </a>
             ))}
+            {user && (
+              <>
+                <a href="/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <LayoutDashboard className="h-3.5 w-3.5" />Dashboard
+                </a>
+                {accountType === 'admin' && (
+                  <a href="/admin" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <Shield className="h-3.5 w-3.5" />Admin Panel
+                  </a>
+                )}
+                {accountType === 'doctor' && (
+                  <a href="/doctor/inbox" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <Stethoscope className="h-3.5 w-3.5" />Doctor Inbox
+                  </a>
+                )}
+                <a href="/support" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <MessageCircle className="h-3.5 w-3.5" />Support
+                </a>
+                <a href="/doctor-chat" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Stethoscope className="h-3.5 w-3.5" />Doctor Chat
+                </a>
+              </>
+            )}
           </nav>
 
           {/* Desktop Actions */}
@@ -203,16 +226,13 @@ const Header = () => {
                 )}
 
                 {accountType === 'doctor' && (
-                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => (window.location.href = '/doctor/inbox')}>
-                    <Bell className="h-3.5 w-3.5 mr-1" />Inbox
+                  <Button variant="outline" size="icon" className="relative h-8 w-8" onClick={() => (window.location.href = '/doctor/inbox')} title="Doctor Inbox">
+                    <Bell className="h-4 w-4" />
                   </Button>
                 )}
 
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={signOut} disabled={loading} title="Sign Out">
                   <LogOut className="h-4 w-4" />
-                </Button>
-                <Button variant="hero" size="sm" className="h-8 text-xs" onClick={() => (window.location.href = '/dashboard')}>
-                  <LayoutDashboard className="h-3.5 w-3.5 mr-1" />Dashboard
                 </Button>
                 <ThemeToggle />
               </>
