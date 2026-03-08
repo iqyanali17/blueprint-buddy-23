@@ -132,12 +132,35 @@ const Header = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-            {navLinks.map(link => (
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
+            {!user && navLinks.map(link => (
               <a key={link.href} href={link.href} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 {link.label}
               </a>
             ))}
+            {user && (
+              <>
+                <a href="/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <LayoutDashboard className="h-3.5 w-3.5" />Dashboard
+                </a>
+                {accountType === 'admin' && (
+                  <a href="/admin" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <Shield className="h-3.5 w-3.5" />Admin Panel
+                  </a>
+                )}
+                {accountType === 'doctor' && (
+                  <a href="/doctor/inbox" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                    <Stethoscope className="h-3.5 w-3.5" />Doctor Inbox
+                  </a>
+                )}
+                <a href="/support" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <MessageCircle className="h-3.5 w-3.5" />Support
+                </a>
+                <a href="/doctor-chat" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Stethoscope className="h-3.5 w-3.5" />Doctor Chat
+                </a>
+              </>
+            )}
           </nav>
 
           {/* Desktop Actions */}
