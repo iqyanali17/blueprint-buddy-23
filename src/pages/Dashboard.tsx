@@ -185,6 +185,14 @@ const Dashboard = () => {
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                 <span>Online</span>
               </Badge>
+              <Button variant="outline" size="sm" onClick={() => navigate('/support')}>
+                <MessageCircle className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Contact Admin</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/doctor-chat')}>
+                <Activity className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Chat with Doctor</span>
+              </Button>
               {isAdmin && (
                 <Button variant="outline" size="sm" onClick={() => navigate('/admin')}>
                   <Shield className="h-4 w-4 sm:mr-2" />

@@ -12,6 +12,8 @@ import NotFound from "./pages/NotFound";
 import DoctorInbox from "./pages/DoctorInbox";
 import AdminInbox from "./pages/AdminInbox";
 import Profile from "./pages/Profile";
+import SupportChat from "./pages/SupportChat";
+import DoctorChat from "./pages/DoctorChat";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +33,8 @@ const App = () => {
                 <Route path="/doctor/inbox" element={<DoctorInbox />} />
                 <Route path="/admin/inbox" element={<AdminInbox />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/support" element={<SupportChat />} />
+                <Route path="/doctor-chat" element={<DoctorChat />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
