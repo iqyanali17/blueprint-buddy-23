@@ -340,25 +340,21 @@ const Header = () => {
               </div>
             ) : (
               <div className="space-y-2 pt-1">
-                <div onClick={() => setIsMenuOpen(false)}>
-                  <AuthModal
-                    trigger={
-                      <Button variant="outline" className="w-full justify-center h-11">
-                        <User className="h-4 w-4 mr-2" />Sign In
-                      </Button>
-                    }
-                  />
-                </div>
-                <div onClick={() => setIsMenuOpen(false)}>
-                  <AuthModal
-                    trigger={
-                      <Button variant="hero" className="w-full justify-center h-11">
-                        <MessageCircle className="h-4 w-4 mr-2" />Start Chat
-                      </Button>
-                    }
-                    defaultTab="signup"
-                  />
-                </div>
+                <AuthModal
+                  trigger={
+                    <Button variant="outline" className="w-full justify-center h-11">
+                      <User className="h-4 w-4 mr-2" />Sign In
+                    </Button>
+                  }
+                />
+                <AuthModal
+                  trigger={
+                    <Button variant="hero" className="w-full justify-center h-11">
+                      <MessageCircle className="h-4 w-4 mr-2" />Start Chat
+                    </Button>
+                  }
+                  defaultTab="signup"
+                />
               </div>
             )}
           </div>
