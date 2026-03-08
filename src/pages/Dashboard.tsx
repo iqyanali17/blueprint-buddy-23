@@ -382,7 +382,7 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="profile">
+          <TabsContent value="profile" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -397,6 +397,64 @@ const Dashboard = () => {
                 <UserProfile />
               </CardContent>
             </Card>
+
+            {/* Admin Request Card — only for non-admins */}
+            {!isAdmin && (
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    Request Admin Access
+                  </CardTitle>
+                  <CardDescription>
+                    Submit a request to the platform administrator for elevated privileges.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {adminRequestStatus === 'loading' ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground"><Clock className="h-4 w-4 animate-spin" />Checking status…</div>
+                  ) : adminRequestStatus === 'pending' ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border">
+                      <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Request Pending</p>
+                        <p className="text-xs text-muted-foreground">Your admin access request is awaiting approval.</p>
+                      </div>
+                    </div>
+                  ) : adminRequestStatus === 'approved' ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <ShieldCheck className="h-5 w-5 text-primary flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Request Approved</p>
+                        <p className="text-xs text-muted-foreground">Log out and back in to activate admin privileges.</p>
+                      </div>
+                    </div>
+                  ) : adminRequestStatus === 'rejected' ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+                      <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Request Rejected</p>
+                        <p className="text-xs text-muted-foreground">Your admin request was not approved by the administrator.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Why do you need admin access? (optional)"
+                        value={adminReason}
+                        onChange={(e) => setAdminReason(e.target.value)}
+                        className="resize-none"
+                        rows={3}
+                      />
+                      <Button onClick={submitAdminRequest} disabled={submittingRequest} size="sm">
+                        <Shield className="h-4 w-4 mr-1.5" />
+                        {submittingRequest ? 'Submitting…' : 'Submit Request'}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
