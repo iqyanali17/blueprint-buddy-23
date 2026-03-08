@@ -12,6 +12,8 @@ import NotFound from "./pages/NotFound";
 import DoctorInbox from "./pages/DoctorInbox";
 import AdminInbox from "./pages/AdminInbox";
 import Profile from "./pages/Profile";
+import SupportChat from "./pages/SupportChat";
+import DoctorChat from "./pages/DoctorChat";
 
 const queryClient = new QueryClient();
 
