@@ -4,21 +4,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { 
-  MessageCircle, 
-  Camera, 
-  Bell, 
-  Activity, 
-  User, 
-  AlertCircle,
-  Heart,
-  Calendar,
-  FileText,
-  Settings,
-  Shield
+  MessageCircle, Camera, Bell, Activity, User, AlertCircle,
+  Heart, Calendar, Shield, ShieldCheck, Clock
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdminCheck } from '@/hooks/useAdminCheck';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import ChatInterface from '@/components/ChatInterface';
 import SymptomChecker from '@/components/SymptomChecker';
 import MedicationTracker from '@/components/MedicationTracker';
@@ -33,6 +27,47 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [chatResult, setChatResult] = useState<string>('');
+  const { toast } = useToast();
+
+  // Admin request state
+  const [adminRequestStatus, setAdminRequestStatus] = useState<'none' | 'pending' | 'approved' | 'rejected' | 'loading'>('loading');
+  const [adminReason, setAdminReason] = useState('');
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const checkRequest = async () => {
+      try {
+        const { data } = await (supabase as any)
+          .from('admin_requests').select('status').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1);
+        if (data && data.length > 0) {
+          setAdminRequestStatus(data[0].status);
+        } else {
+          setAdminRequestStatus('none');
+        }
+      } catch { setAdminRequestStatus('none'); }
+    };
+    checkRequest();
+  }, [user]);
+
+  const submitAdminRequest = async () => {
+    if (!user) return;
+    setSubmittingRequest(true);
+    try {
+      const { error } = await (supabase as any).from('admin_requests').insert({
+        user_id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || '',
+        reason: adminReason || null,
+      });
+      if (error) throw error;
+      setAdminRequestStatus('pending');
+      setAdminReason('');
+      toast({ title: 'Request Sent', description: 'Your admin access request has been submitted for review.' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to submit request', variant: 'destructive' });
+    } finally { setSubmittingRequest(false); }
+  };
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -347,7 +382,7 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="profile">
+          <TabsContent value="profile" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -362,6 +397,64 @@ const Dashboard = () => {
                 <UserProfile />
               </CardContent>
             </Card>
+
+            {/* Admin Request Card — only for non-admins */}
+            {!isAdmin && (
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    Request Admin Access
+                  </CardTitle>
+                  <CardDescription>
+                    Submit a request to the platform administrator for elevated privileges.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {adminRequestStatus === 'loading' ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground"><Clock className="h-4 w-4 animate-spin" />Checking status…</div>
+                  ) : adminRequestStatus === 'pending' ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border">
+                      <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Request Pending</p>
+                        <p className="text-xs text-muted-foreground">Your admin access request is awaiting approval.</p>
+                      </div>
+                    </div>
+                  ) : adminRequestStatus === 'approved' ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <ShieldCheck className="h-5 w-5 text-primary flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Request Approved</p>
+                        <p className="text-xs text-muted-foreground">Log out and back in to activate admin privileges.</p>
+                      </div>
+                    </div>
+                  ) : adminRequestStatus === 'rejected' ? (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+                      <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">Request Rejected</p>
+                        <p className="text-xs text-muted-foreground">Your admin request was not approved by the administrator.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <Textarea
+                        placeholder="Why do you need admin access? (optional)"
+                        value={adminReason}
+                        onChange={(e) => setAdminReason(e.target.value)}
+                        className="resize-none"
+                        rows={3}
+                      />
+                      <Button onClick={submitAdminRequest} disabled={submittingRequest} size="sm">
+                        <Shield className="h-4 w-4 mr-1.5" />
+                        {submittingRequest ? 'Submitting…' : 'Submit Request'}
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
