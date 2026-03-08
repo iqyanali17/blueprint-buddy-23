@@ -4,7 +4,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { 
+  MessageCircle, 
+  Camera, 
+  Bell, 
+  Activity, 
+  User, 
+  AlertCircle,
+  Heart,
+  Calendar,
+  FileText,
+  Settings,
+  Shield,
+  ShieldCheck,
+  Clock
+} from 'lucide-react';
   MessageCircle, 
   Camera, 
   Bell, 
