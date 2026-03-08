@@ -122,6 +122,7 @@ const Header = () => {
   };
 
   return (
+    <>
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex h-14 sm:h-16 items-center justify-between gap-2">
