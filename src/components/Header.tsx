@@ -246,10 +246,11 @@ const Header = () => {
           </div>
         </div>
       </div>
+    </header>
 
-      {/* Mobile slide-down menu */}
+      {/* Mobile slide-down menu - rendered outside header to avoid stacking context issues */}
       {isMenuOpen && (
-        <div className="md:hidden fixed inset-x-0 top-14 sm:top-16 bottom-0 z-[60] bg-background backdrop-blur-sm overflow-y-auto animate-in slide-in-from-top-2 duration-200">
+        <div className="md:hidden fixed inset-x-0 top-14 sm:top-16 bottom-0 z-[60] bg-background overflow-y-auto animate-in slide-in-from-top-2 duration-200">
           <div className="container mx-auto px-4 py-4 space-y-1">
             {/* User profile card in mobile menu */}
             {user && (
