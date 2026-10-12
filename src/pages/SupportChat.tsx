@@ -42,7 +42,7 @@ const SupportChat: React.FC = () => {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/');
-  }, [user, authLoading]);
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     if (!user) return;

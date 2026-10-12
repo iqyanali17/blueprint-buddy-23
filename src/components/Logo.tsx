@@ -7,6 +7,7 @@ interface LogoProps {
 }
 
 const Logo: React.FC<LogoProps> = ({ size = 40, showText = true, className = '' }) => {
+  const gradientId = React.useId();
   const box = size;
   const wordmarkHeight = Math.round(size * 0.75);
   return (
@@ -21,14 +22,14 @@ const Logo: React.FC<LogoProps> = ({ size = 40, showText = true, className = '' 
         role="img"
       >
         <defs>
-          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#3b82f6" />
             <stop offset="50%" stopColor="#4ade80" />
             <stop offset="100%" stopColor="#fcd34d" />
           </linearGradient>
         </defs>
         <rect x="1" y="1" rx="12" ry="12" width="46" height="46" fill="#ffffff" />
-        <rect x="1.6" y="1.6" rx="12" ry="12" width="44.8" height="44.8" fill="none" stroke="url(#g1)" strokeWidth="1.6" />
+        <rect x="1.6" y="1.6" rx="12" ry="12" width="44.8" height="44.8" fill="none" stroke={`url(#${gradientId})`} strokeWidth="1.6" />
         <circle cx="15" cy="14" r="3" fill="#3b82f6" />
         <circle cx="33" cy="14" r="3" fill="#3b82f6" />
         <path d="M18 15 C19.5 20, 22 23, 24 23 C26 23, 28.5 20, 30 15" fill="none" stroke="#3b82f6" strokeWidth="2.2" strokeLinecap="round" />

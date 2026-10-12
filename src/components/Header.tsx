@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, User, Menu, X, LogOut, Bell, Clock, LayoutDashboard, ChevronRight, Shield, Stethoscope } from 'lucide-react';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -8,7 +9,19 @@ import ThemeToggle from '@/components/ThemeToggle';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 
+const RoleBadge = React.memo(({ roleLabel, accountType }: { roleLabel?: string; accountType?: 'patient' | 'doctor' | 'admin' }) => {
+  if (!roleLabel) return null;
+  const icon = accountType === 'admin' ? <Shield className="h-3 w-3" /> : accountType === 'doctor' ? <Stethoscope className="h-3 w-3" /> : null;
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+      {icon}{roleLabel}
+    </span>
+  );
+});
+RoleBadge.displayName = 'RoleBadge';
+
 const Header = () => {
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut, loading } = useAuth();
   const accountType = (user?.user_metadata as any)?.account_type as 'patient' | 'doctor' | 'admin' | undefined;
@@ -111,25 +124,15 @@ const Header = () => {
     { href: '#contact', label: 'Contact' },
   ];
 
-  const RoleBadge = () => {
-    if (!roleLabel) return null;
-    const icon = accountType === 'admin' ? <Shield className="h-3 w-3" /> : accountType === 'doctor' ? <Stethoscope className="h-3 w-3" /> : null;
-    return (
-      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-        {icon}{roleLabel}
-      </span>
-    );
-  };
-
   return (
     <>
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex h-14 sm:h-16 items-center justify-between gap-2">
           {/* Logo - always visible */}
-          <div className="flex-shrink-0">
+          <Link to="/" className="flex-shrink-0">
             <Logo size={36} showText className="cursor-pointer" />
-          </div>
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
@@ -140,25 +143,25 @@ const Header = () => {
             ))}
             {user && (
               <>
-                <a href="/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/dashboard" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <LayoutDashboard className="h-3.5 w-3.5" />Dashboard
-                </a>
+                </Link>
                 {accountType === 'admin' && (
-                  <a href="/admin" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to="/admin" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                     <Shield className="h-3.5 w-3.5" />Admin Panel
-                  </a>
+                  </Link>
                 )}
                 {accountType === 'doctor' && (
-                  <a href="/doctor/inbox" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to="/doctor/inbox" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                     <Stethoscope className="h-3.5 w-3.5" />Doctor Inbox
-                  </a>
+                  </Link>
                 )}
-                <a href="/support" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/support" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <MessageCircle className="h-3.5 w-3.5" />Support
-                </a>
-                <a href="/doctor-chat" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                </Link>
+                <Link to="/doctor-chat" className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                   <Stethoscope className="h-3.5 w-3.5" />Doctor Chat
-                </a>
+                </Link>
               </>
             )}
           </nav>
@@ -169,7 +172,7 @@ const Header = () => {
               <>
                 {/* Profile chip - clickable */}
                 <button
-                  onClick={() => (window.location.href = '/profile')}
+                  onClick={() => navigate('/profile')}
                   className="flex items-center gap-2 px-2 py-1.5 rounded-full hover:bg-muted/60 transition-colors max-w-[200px] lg:max-w-[260px]"
                 >
                   <Avatar className="h-7 w-7 lg:h-8 lg:w-8 ring-2 ring-primary/20 flex-shrink-0">
@@ -177,7 +180,7 @@ const Header = () => {
                     <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">{initials}</AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium truncate hidden lg:block">{firstName}</span>
-                  <RoleBadge />
+                  <RoleBadge roleLabel={roleLabel} accountType={accountType} />
                 </button>
 
                 {/* Admin inbox */}
@@ -226,7 +229,7 @@ const Header = () => {
                 )}
 
                 {accountType === 'doctor' && (
-                  <Button variant="outline" size="icon" className="relative h-8 w-8" onClick={() => (window.location.href = '/doctor/inbox')} title="Doctor Inbox">
+                  <Button variant="outline" size="icon" className="relative h-8 w-8" onClick={() => navigate('/doctor/inbox')} title="Doctor Inbox">
                     <Bell className="h-4 w-4" />
                   </Button>
                 )}
@@ -249,14 +252,14 @@ const Header = () => {
           <div className="flex md:hidden items-center gap-2">
             {user && (
               <button
-                onClick={() => (window.location.href = '/profile')}
+                onClick={() => navigate('/profile')}
                 className="flex items-center gap-1.5 px-1.5 py-1 rounded-full hover:bg-muted/60 transition-colors"
               >
                 <Avatar className="h-7 w-7 ring-2 ring-primary/20">
                   <AvatarImage src={effectiveAvatar} alt={displayName || 'User'} />
                   <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">{initials}</AvatarFallback>
                 </Avatar>
-                <RoleBadge />
+                <RoleBadge roleLabel={roleLabel} accountType={accountType} />
               </button>
             )}
             <ThemeToggle />
@@ -276,7 +279,7 @@ const Header = () => {
             {user && (
               <div
                 className="flex items-center gap-3 p-3 mb-3 rounded-xl bg-muted/40 border cursor-pointer"
-                onClick={() => { setIsMenuOpen(false); window.location.href = '/profile'; }}
+                onClick={() => { setIsMenuOpen(false); navigate('/profile'); }}
               >
                 <Avatar className="h-11 w-11 ring-2 ring-primary/20 flex-shrink-0">
                   <AvatarImage src={effectiveAvatar} alt={displayName || 'User'} />
@@ -285,7 +288,7 @@ const Header = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate">{displayName}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <RoleBadge />
+                    <RoleBadge roleLabel={roleLabel} accountType={accountType} />
                     <span className="text-[10px] text-muted-foreground">View Profile</span>
                   </div>
                 </div>
@@ -310,21 +313,21 @@ const Header = () => {
             {user ? (
               <div className="space-y-1">
                 <button
-                  onClick={() => { setIsMenuOpen(false); window.location.href = '/dashboard'; }}
+                  onClick={() => { setIsMenuOpen(false); navigate('/dashboard'); }}
                   className="flex items-center gap-2 w-full h-11 px-3 rounded-lg text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
                 >
                   <LayoutDashboard className="h-4 w-4 text-primary" />Dashboard
                 </button>
 
                 <button
-                  onClick={() => { setIsMenuOpen(false); window.location.href = '/support'; }}
+                  onClick={() => { setIsMenuOpen(false); navigate('/support'); }}
                   className="flex items-center gap-2 w-full h-11 px-3 rounded-lg text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
                 >
                   <MessageCircle className="h-4 w-4 text-primary" />Contact Admin
                 </button>
 
                 <button
-                  onClick={() => { setIsMenuOpen(false); window.location.href = '/doctor-chat'; }}
+                  onClick={() => { setIsMenuOpen(false); navigate('/doctor-chat'); }}
                   className="flex items-center gap-2 w-full h-11 px-3 rounded-lg text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
                 >
                   <Stethoscope className="h-4 w-4 text-primary" />Chat with Doctor
@@ -332,7 +335,7 @@ const Header = () => {
 
                 {accountType === 'doctor' && (
                   <button
-                    onClick={() => { setIsMenuOpen(false); window.location.href = '/doctor/inbox'; }}
+                    onClick={() => { setIsMenuOpen(false); navigate('/doctor/inbox'); }}
                     className="flex items-center gap-2 w-full h-11 px-3 rounded-lg text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
                   >
                     <Bell className="h-4 w-4 text-primary" />Doctor Inbox
@@ -341,7 +344,7 @@ const Header = () => {
 
                 {accountType === 'admin' && (
                   <button
-                    onClick={() => { setIsMenuOpen(false); window.location.href = '/admin'; }}
+                    onClick={() => { setIsMenuOpen(false); navigate('/admin'); }}
                     className="flex items-center gap-2 w-full h-11 px-3 rounded-lg text-sm font-medium text-foreground hover:bg-muted/60 transition-colors"
                   >
                     <Shield className="h-4 w-4 text-primary" />Admin Panel

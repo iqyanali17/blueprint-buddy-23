@@ -6,6 +6,7 @@ import { Camera, Upload, Eye, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/hooks/use-toast';
+import { optimizeImage } from '@/lib/imageOptimizer';
 
 interface ImageAnalysisProps {
   onComplete: (payload: { imageDataUrl: string; result: string }) => void;
@@ -26,13 +27,13 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ onComplete }) => {
     { type: 'general' as const, label: 'General Analysis', description: 'General medical image analysis' }
   ];
 
-  const handleImageSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      if (file.size > 20 * 1024 * 1024) { // 20MB limit
         toast({
           title: "File too large",
-          description: "Please select an image smaller than 10MB",
+          description: "Please select an image smaller than 20MB",
           variant: "destructive",
         });
         return;
@@ -48,11 +49,16 @@ const ImageAnalysis: React.FC<ImageAnalysisProps> = ({ onComplete }) => {
       }
 
       setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const { dataUrl } = await optimizeImage(file, 1280, 0.82);
+        setImagePreview(dataUrl);
+      } catch {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setImagePreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   }, []);
 

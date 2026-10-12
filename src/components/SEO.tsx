@@ -14,7 +14,7 @@ const SEO: React.FC<SEOProps> = ({
   title = 'MEDITALK - AI-Powered Medical Assistant | 24/7 Healthcare Guidance',
   description = 'Get instant medical guidance with MEDITALK\'s AI-powered healthcare assistant. Symptom checker, image analysis, medication tracking, and multilingual support available 24/7.',
   keywords = 'AI medical assistant, healthcare AI, symptom checker, medical guidance, telemedicine, health app, medical consultation, AI diagnosis, healthcare technology',
-  ogImage = '/meditalk-og-image.jpg',
+  ogImage = '/meditalk-logo.svg',
   canonicalUrl = 'https://meditalk.ai',
   structuredData
 }) => {

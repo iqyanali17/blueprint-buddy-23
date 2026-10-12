@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MessageCircle, Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 
 const Footer = () => {
+  const navigate = useNavigate();
   return (
     <footer className="bg-foreground text-background">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -100,7 +102,7 @@ const Footer = () => {
             </div>
 
             {/* CTA Button */}
-            <Button variant="medical" className="w-full" onClick={() => window.location.href = '/dashboard'}>
+            <Button variant="medical" className="w-full" onClick={() => navigate('/dashboard')}>
               <MessageCircle className="w-4 h-4 mr-2" />
               Start Chat Now
             </Button>

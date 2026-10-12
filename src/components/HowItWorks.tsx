@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 
 const HowItWorks = () => {
+  const navigate = useNavigate();
   const steps = [
     {
       step: "01",
@@ -171,7 +173,7 @@ const HowItWorks = () => {
                   </div>
                 </div>
 
-                <Button variant="hero" className="w-full group" onClick={() => window.location.href = '/dashboard'}>
+                <Button variant="hero" className="w-full group" onClick={() => navigate('/dashboard')}>
                   Start Your Consultation
                   <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
@@ -223,11 +225,11 @@ const HowItWorks = () => {
               Sign up today and experience the future of healthcare assistance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="secondary" size="lg" onClick={() => window.location.href = '/dashboard'}>
+              <Button variant="secondary" size="lg" onClick={() => navigate('/dashboard')}>
                 <MessageCircle className="w-5 h-5 mr-2" />
                 Start Free Consultation
               </Button>
-              <Button variant="outline" size="lg" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
+              <Button onClick={() => document.getElementById('about')?.scrollIntoView({ behavior: 'smooth' })} variant="outline" size="lg" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
                 Learn More About AI
               </Button>
             </div>

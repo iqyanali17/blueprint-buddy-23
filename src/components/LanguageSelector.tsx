@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Languages } from 'lucide-react';
-import { Button } from './ui/button';
 import {
   Select,
   SelectContent,
@@ -8,11 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from './ui/popover';
 
 interface LanguageSelectorProps {
   onLanguageChange: (language: string) => void;
@@ -48,32 +42,23 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({ onLanguageCh
       setSelectedLanguage(savedLanguage);
       onLanguageChange(savedLanguage);
     }
-  }, []);
+  }, [onLanguageChange]);
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="icon">
-          <Languages className="h-4 w-4" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64">
-        <div className="space-y-4">
-          <h4 className="font-medium text-sm">Select Language</h4>
-          <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select language" />
-            </SelectTrigger>
-            <SelectContent>
-              {LANGUAGES.map((lang) => (
-                <SelectItem key={lang.code} value={lang.code}>
-                  {lang.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <div className="flex items-center gap-1">
+      <Select value={selectedLanguage} onValueChange={handleLanguageChange}>
+        <SelectTrigger className="h-9 gap-1.5 px-2.5 text-xs">
+          <Languages className="h-4 w-4 text-muted-foreground" />
+          <SelectValue placeholder="Language" />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {LANGUAGES.map((lang) => (
+            <SelectItem key={lang.code} value={lang.code} className="text-xs">
+              {lang.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 };

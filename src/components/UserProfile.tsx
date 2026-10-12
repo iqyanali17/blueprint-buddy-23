@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +51,7 @@ interface ProfileData {
 }
 
 const UserProfile: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<ProfileData>({
@@ -78,6 +80,7 @@ const UserProfile: React.FC = () => {
     if (user) {
       loadProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadProfile = async () => {
@@ -240,7 +243,7 @@ const UserProfile: React.FC = () => {
 
       await loadProfile();
       toast({ title: '✅ Profile Saved', description: 'Your medical profile has been updated successfully.' });
-      window.location.href = '/dashboard';
+      navigate('/dashboard');
     } catch (error: any) {
       console.error('Error saving profile:', error);
       toast({ title: 'Save Failed', description: error?.message || String(error), variant: 'destructive' });
