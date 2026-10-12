@@ -1,52 +1,59 @@
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { MeditationTimerProvider } from "@/contexts/MeditationTimerContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import GlobalMeditationIndicator from "@/components/GlobalMeditationIndicator";
-import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import NotFound from "./pages/NotFound";
-import DoctorInbox from "./pages/DoctorInbox";
-import AdminInbox from "./pages/AdminInbox";
-import Profile from "./pages/Profile";
-import SupportChat from "./pages/SupportChat";
-import DoctorChat from "./pages/DoctorChat";
+import React, { Suspense, lazy } from "react";
+import LoadingSpinner from "@/components/LoadingSpinner";
 
-const queryClient = new QueryClient();
+const Index = lazy(() => import("./pages/Index"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const DoctorInbox = lazy(() => import("./pages/DoctorInbox"));
+const AdminInbox = lazy(() => import("./pages/AdminInbox"));
+const Profile = lazy(() => import("./pages/Profile"));
+const SupportChat = lazy(() => import("./pages/SupportChat"));
+const DoctorChat = lazy(() => import("./pages/DoctorChat"));
 
 const App = () => {
   return (
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <HelmetProvider>
-          <TooltipProvider>
+      <HelmetProvider>
+        <TooltipProvider>
+          <AuthProvider>
             <MeditationTimerProvider>
               <Toaster />
-              <Sonner />
               <GlobalMeditationIndicator />
               <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/doctor/inbox" element={<DoctorInbox />} />
-                  <Route path="/admin/inbox" element={<AdminInbox />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/support" element={<SupportChat />} />
-                  <Route path="/doctor-chat" element={<DoctorChat />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+                <Suspense
+                  fallback={
+                    <div className="min-h-screen flex items-center justify-center bg-background">
+                      <LoadingSpinner size="lg" text="Loading MEDITALK..." />
+                    </div>
+                  }
+                >
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/doctor/inbox" element={<DoctorInbox />} />
+                    <Route path="/admin/inbox" element={<AdminInbox />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/support" element={<SupportChat />} />
+                    <Route path="/doctor-chat" element={<DoctorChat />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
               </BrowserRouter>
             </MeditationTimerProvider>
-          </TooltipProvider>
-        </HelmetProvider>
-      </QueryClientProvider>
+          </AuthProvider>
+        </TooltipProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   );
 };

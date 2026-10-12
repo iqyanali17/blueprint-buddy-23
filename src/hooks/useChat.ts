@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { ChatSession, Message } from '@/lib/supabase';
 import { useAuth } from './useAuth';
@@ -12,7 +12,7 @@ export const useChat = () => {
   const [loading, setLoading] = useState(false);
 
   // Load chat sessions
-  const loadSessions = async () => {
+  const loadSessions = useCallback(async () => {
     if (!user) return;
     
     try {
@@ -27,7 +27,7 @@ export const useChat = () => {
     } catch (error: any) {
       console.error('Error loading sessions:', error.message);
     }
-  };
+  }, [user]);
 
   const deleteSession = async (sessionId: string) => {
     if (!user) return false;
@@ -304,7 +304,7 @@ SAFETY: If allergies or medications are known, ALWAYS check for conflicts. For e
       setCurrentSession(null);
       setMessages([]);
     }
-  }, [user]);
+  }, [user, loadSessions]);
 
   return {
     sessions,

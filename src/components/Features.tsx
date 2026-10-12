@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { 
@@ -12,31 +13,38 @@ import {
   Heart,
   Smartphone
 } from 'lucide-react';
-import chatbotIcon from '@/assets/chatbot-icon.jpg';
-import imageAnalysisIcon from '@/assets/image-analysis-icon.jpg';
-import reminderIcon from '@/assets/reminder-icon.jpg';
+import chatbotIconWebp from '@/assets/chatbot-icon.webp';
+import chatbotIconJpg from '@/assets/chatbot-icon.jpg';
+import imageAnalysisIconWebp from '@/assets/image-analysis-icon.webp';
+import imageAnalysisIconJpg from '@/assets/image-analysis-icon.jpg';
+import reminderIconWebp from '@/assets/reminder-icon.webp';
+import reminderIconJpg from '@/assets/reminder-icon.jpg';
 
 const Features = () => {
+  const navigate = useNavigate();
   const mainFeatures = [
     {
       icon: MessageCircle,
       title: "AI-Powered Chatbot",
       description: "Intelligent symptom assessment through natural language processing and machine learning",
-      image: chatbotIcon,
+      imageWebp: chatbotIconWebp,
+      imageJpg: chatbotIconJpg,
       benefits: ["Real-time responses", "Symptom analysis", "Emotional understanding", "24/7 availability"]
     },
     {
       icon: Camera,
       title: "Medical Image Analysis",
       description: "Upload images of visible symptoms for AI-powered visual diagnosis and recommendations",
-      image: imageAnalysisIcon,
+      imageWebp: imageAnalysisIconWebp,
+      imageJpg: imageAnalysisIconJpg,
       benefits: ["Skin condition analysis", "Wound assessment", "Visual symptom tracking", "ML-powered insights"]
     },
     {
       icon: Bell,
       title: "Smart Reminders",
       description: "Personalized medication reminders and health check-up notifications",
-      image: reminderIcon,
+      imageWebp: reminderIconWebp,
+      imageJpg: reminderIconJpg,
       benefits: ["Medication alerts", "Check-up reminders", "Health tips", "Custom scheduling"]
     }
   ];
@@ -101,11 +109,18 @@ const Features = () => {
             <Card key={index} className="group hover:shadow-medical transition-medical border-0 bg-gradient-healing">
               <CardHeader className="pb-4">
                 <div className="relative mb-4">
-                  <img
-                    src={feature.image}
-                    alt={feature.title}
-                    className="w-full h-48 object-cover rounded-lg"
-                  />
+                  <picture>
+                    <source srcSet={feature.imageWebp} type="image/webp" />
+                    <img
+                      src={feature.imageJpg}
+                      alt={feature.title}
+                      loading="lazy"
+                      decoding="async"
+                      width={512}
+                      height={512}
+                      className="w-full h-48 object-cover rounded-lg"
+                    />
+                  </picture>
                   <div className="absolute top-4 left-4 bg-white/90 backdrop-blur rounded-lg p-2">
                     <feature.icon className="w-6 h-6 text-primary" />
                   </div>
@@ -174,13 +189,11 @@ const Features = () => {
               Join thousands of users who trust MEDITALK for their preliminary medical guidance and health management.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button variant="secondary" size="lg" onClick={() => window.location.href = '/dashboard'}>
+              <Button variant="secondary" size="lg" onClick={() => navigate('/dashboard')}>
                 <MessageCircle className="w-5 h-5 mr-2" />
                 Start Free Chat
               </Button>
-              <Button variant="outline" size="lg" className="bg-white/10 border-white/20 text-white hover:bg-white/20">
-                Book Demo
-              </Button>
+             
             </div>
           </div>
         </div>

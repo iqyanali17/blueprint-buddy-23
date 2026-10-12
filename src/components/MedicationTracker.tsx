@@ -72,6 +72,7 @@ const MedicationTracker: React.FC = () => {
     if (user) {
       loadMedications();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadMedications = async () => {
@@ -234,6 +235,7 @@ const MedicationTracker: React.FC = () => {
       clearTimeout(startTimeout);
       if (intervalId) clearInterval(intervalId);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, medications, enableSound]);
 
   // Proactively request notification permission once on mount

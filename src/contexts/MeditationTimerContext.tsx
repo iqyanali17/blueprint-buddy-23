@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { useMeditationTimer } from '@/hooks/useMeditationTimer';
 import { useToast } from '@/hooks/use-toast';
 
@@ -22,6 +22,7 @@ interface MeditationTimerContextType {
 
 const MeditationTimerContext = createContext<MeditationTimerContextType | null>(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useMeditationTimerContext = () => {
   const ctx = useContext(MeditationTimerContext);
   if (!ctx) throw new Error('useMeditationTimerContext must be used within MeditationTimerProvider');
@@ -59,19 +60,19 @@ export const MeditationTimerProvider: React.FC<{ children: React.ReactNode }> = 
     }
   }, [timer]);
 
+  const contextValue = useMemo(() => ({
+    ...timer,
+    duration,
+    soundEnabled,
+    notificationEnabled,
+    setDuration: handleSetDuration,
+    setTimerDuration: timer.setDuration,
+    setSoundEnabled,
+    setNotificationEnabled,
+  }), [timer, duration, soundEnabled, notificationEnabled, handleSetDuration]);
+
   return (
-    <MeditationTimerContext.Provider
-      value={{
-        ...timer,
-        duration,
-        soundEnabled,
-        notificationEnabled,
-        setDuration: handleSetDuration,
-        setTimerDuration: timer.setDuration,
-        setSoundEnabled,
-        setNotificationEnabled,
-      }}
-    >
+    <MeditationTimerContext.Provider value={contextValue}>
       {children}
     </MeditationTimerContext.Provider>
   );

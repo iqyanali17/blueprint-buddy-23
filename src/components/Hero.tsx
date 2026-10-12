@@ -1,9 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Play, Shield, Clock, Globe } from 'lucide-react';
-import heroImage from '@/assets/meditalk-hero.jpg';
+import heroImageWebp from '@/assets/meditalk-hero.webp';
+import heroImageJpg from '@/assets/meditalk-hero.jpg';
 
 const Hero = () => {
+  const navigate = useNavigate();
   return (
     <section className="relative min-h-screen flex items-center justify-center bg-gradient-healing overflow-hidden">
       {/* Background decoration */}
@@ -52,7 +55,7 @@ const Hero = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button variant="hero" size="xl" className="group" onClick={() => window.location.href = '/dashboard'}>
+              <Button variant="hero" size="xl" className="group" onClick={() => navigate('/dashboard')}>
                 <MessageCircle className="w-5 h-5 mr-2 group-hover:animate-pulse-medical" />
                 Start Medical Chat
               </Button>
@@ -86,11 +89,18 @@ const Hero = () => {
           {/* Hero Image */}
           <div className="relative animate-fade-in">
             <div className="relative rounded-2xl overflow-hidden shadow-medical">
-              <img
-                src={heroImage}
-                alt="MEDITALK AI Medical Assistant Interface"
-                className="w-full h-auto transform hover:scale-105 transition-medical"
-              />
+              <picture>
+                <source srcSet={heroImageWebp} type="image/webp" />
+                <img
+                  src={heroImageJpg}
+                  alt="MEDITALK AI Medical Assistant Interface"
+                  width={1920}
+                  height={1080}
+                  fetchPriority="high"
+                  decoding="async"
+                  className="w-full h-auto aspect-video object-cover transform hover:scale-105 transition-medical"
+                />
+              </picture>
               
               {/* Floating elements */}
               <div className="absolute top-4 right-4 bg-success text-white px-3 py-1 rounded-full text-xs font-medium animate-pulse-medical">

@@ -159,7 +159,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mb-4">
               Please sign in to access your medical dashboard.
             </p>
-            <Button onClick={() => window.location.href = '/'}>
+            <Button onClick={() => navigate('/')}>
               Return to Home
             </Button>
           </CardContent>
@@ -199,7 +199,7 @@ const Dashboard = () => {
                   <span className="hidden sm:inline">Admin Panel</span>
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={() => window.location.href = '/'}>
+              <Button variant="outline" size="sm" onClick={() => navigate('/')}>
                 <span className="hidden sm:inline">Back to Home</span>
                 <span className="sm:hidden">Home</span>
               </Button>
@@ -302,7 +302,7 @@ const Dashboard = () => {
             </div>
 
             {/* Health Overview Widget */}
-            <HealthDashboard />
+            {activeTab === 'overview' && <HealthDashboard />}
           </TabsContent>
 
           <TabsContent value="chat">
@@ -317,7 +317,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ChatInterface />
+                {activeTab === 'chat' && <ChatInterface />}
               </CardContent>
             </Card>
           </TabsContent>
@@ -334,7 +334,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <SymptomChecker onComplete={handleChatComplete} />
+                {activeTab === 'symptoms' && <SymptomChecker onComplete={handleChatComplete} />}
               </CardContent>
             </Card>
           </TabsContent>
@@ -351,7 +351,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <MedicationTracker />
+                {activeTab === 'medications' && <MedicationTracker />}
               </CardContent>
             </Card>
           </TabsContent>
@@ -368,7 +368,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ImageAnalysis onComplete={handleImageAnalysisComplete} />
+                {activeTab === 'imaging' && <ImageAnalysis onComplete={handleImageAnalysisComplete} />}
               </CardContent>
             </Card>
           </TabsContent>
@@ -385,7 +385,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <EmergencyGuide />
+                {activeTab === 'emergency' && <EmergencyGuide />}
               </CardContent>
             </Card>
           </TabsContent>
@@ -402,7 +402,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <UserProfile />
+                {activeTab === 'profile' && <UserProfile />}
               </CardContent>
             </Card>
 

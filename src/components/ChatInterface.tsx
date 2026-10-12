@@ -1,81 +1,52 @@
-import React, { useState, useEffect, useRef } from 'react';
-
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Send, Mic, Camera, AlertCircle, Bot, User, Plus, Menu, Trash2 } from 'lucide-react';
+import { Bot, User, Plus, Menu, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { VoiceInput } from '@/components/VoiceInput';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { toast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import SymptomChecker from './SymptomChecker';
-import MedicationTracker from './MedicationTracker';
-import EmergencyGuide from './EmergencyGuide';
-import ImageAnalysis from './ImageAnalysis';
-import HealthDashboard from './HealthDashboard';
-import UserProfile from './UserProfile';
+import LoadingSpinner from '@/components/LoadingSpinner';
+import { ChatInputBar, QuickActionType } from './ChatInputBar';
+import { optimizeImage } from '@/lib/imageOptimizer';
+
+const SymptomChecker = lazy(() => import('./SymptomChecker'));
+const MedicationTracker = lazy(() => import('./MedicationTracker'));
+const EmergencyGuide = lazy(() => import('./EmergencyGuide'));
+const ImageAnalysis = lazy(() => import('./ImageAnalysis'));
+const HealthDashboard = lazy(() => import('./HealthDashboard'));
+const UserProfile = lazy(() => import('./UserProfile'));
 
 const ChatInterface = () => {
   const { user } = useAuth();
-  const { messages, currentSession, sessions, loading, createSession, sendMessage, addAssistantMessage, setCurrentSession, loadMessages, deleteSession } = useChat();
-  const [inputMessage, setInputMessage] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    messages,
+    currentSession,
+    sessions,
+    loading,
+    createSession,
+    sendMessage,
+    addAssistantMessage,
+    setCurrentSession,
+    loadMessages,
+    deleteSession,
+  } = useChat();
 
   const [currentView, setCurrentView] = useState<'chat' | 'symptoms' | 'medications' | 'emergency' | 'image' | 'dashboard' | 'profile'>('chat');
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [isExpanded] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [, setSelectedLanguage] = useState('en');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {};
-
-  // No auto expand/collapse; chat stays full-screen
-
-  const handleImageButtonClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleInlineImageSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !user) return;
-    if (!file.type.startsWith('image/')) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const dataUrl = e.target?.result as string;
-      let sessionId = currentSession?.id;
-      if (!sessionId) {
-        const s = await createSession('Medical Consultation');
-        sessionId = s?.id;
-      }
-      await sendMessage(inputMessage.trim(), {
-        messageType: 'image',
-        attachments: [dataUrl],
-        metadata: { name: file.name, size: file.size, type: file.type },
-        sessionIdOverride: sessionId,
-      });
-      setInputMessage('');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    };
-    reader.readAsDataURL(file);
-  };
-
-  useEffect(() => {
-    // No auto-scroll to bottom; newest messages appear at the top
-  }, [messages]);
-
-  // Keep position; do not auto-scroll when switching views (must be before any early returns)
+  // Keep position; do not auto-scroll when switching views
   useEffect(() => {
     // intentionally empty to avoid hook order changes and keep behavior consistent
   }, [currentView]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
-    
+  const handleSendMessage = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -91,9 +62,35 @@ const ChatInterface = () => {
       sessionId = s?.id;
     }
 
-    await sendMessage(inputMessage, { sessionIdOverride: sessionId });
-    setInputMessage('');
-  };
+    await sendMessage(text, { sessionIdOverride: sessionId });
+  }, [user, currentSession?.id, createSession, sendMessage]);
+
+  const handleSendImage = useCallback(async (file: File, caption: string) => {
+    if (!file || !user) return;
+    if (!file.type.startsWith('image/')) return;
+
+    try {
+      const { dataUrl, size } = await optimizeImage(file, 1280, 0.82);
+      let sessionId = currentSession?.id;
+      if (!sessionId) {
+        const s = await createSession('Medical Consultation');
+        sessionId = s?.id;
+      }
+      await sendMessage(caption.trim(), {
+        messageType: 'image',
+        attachments: [dataUrl],
+        metadata: { name: file.name, size, type: 'image/webp' },
+        sessionIdOverride: sessionId,
+      });
+    } catch (err) {
+      console.error('Error processing image:', err);
+      toast({
+        title: "Image processing failed",
+        description: "Unable to process the image. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [user, currentSession?.id, createSession, sendMessage]);
 
   const handleStartNewChat = async () => {
     if (!user) return;
@@ -101,7 +98,7 @@ const ChatInterface = () => {
     setCurrentView('chat');
   };
 
-  const handleQuickAction = (type: 'symptoms' | 'medications' | 'emergency' | 'image' | 'dashboard' | 'profile') => {
+  const handleQuickAction = useCallback((type: QuickActionType) => {
     if (!user) {
       toast({
         title: "Authentication Required",
@@ -111,7 +108,7 @@ const ChatInterface = () => {
       return;
     }
     setCurrentView(type);
-  };
+  }, [user]);
 
   const handleSymptomComplete = async (assessment: string) => {
     let sessionId = currentSession?.id;
@@ -121,10 +118,6 @@ const ChatInterface = () => {
     }
     await sendMessage(assessment, { sessionIdOverride: sessionId });
     setCurrentView('chat');
-  };
-
-  const handleVoiceTranscript = async (transcript: string) => {
-    setInputMessage(transcript);
   };
 
   const handleImageComplete = async (payload: { imageDataUrl: string; result: string }) => {
@@ -154,13 +147,12 @@ const ChatInterface = () => {
       sender: 'assistant',
       content: "Hello! I'm MEDITALK, your AI healthcare assistant. I can help you with symptom assessment, medical guidance, and health questions. How can I assist you today?",
       created_at: new Date().toISOString(),
-      // Added fields to align with Message type
       message_type: 'text',
       attachments: [],
       metadata: null,
       session_id: 'demo',
-      user_id: 'demo'
-    }
+      user_id: 'demo',
+    },
   ];
 
   const displayMessages = user ? messages : demoMessages;
@@ -183,7 +175,9 @@ const ChatInterface = () => {
               ← Back to Chat
             </Button>
           </div>
-          <SymptomChecker onComplete={handleSymptomComplete} />
+          <Suspense fallback={<div className="flex justify-center p-12"><LoadingSpinner size="lg" text="Loading Symptom Checker..." /></div>}>
+            <SymptomChecker onComplete={handleSymptomComplete} />
+          </Suspense>
         </div>
       </section>
     );
@@ -207,7 +201,9 @@ const ChatInterface = () => {
               ← Back to Chat
             </Button>
           </div>
-          <MedicationTracker />
+          <Suspense fallback={<div className="flex justify-center p-12"><LoadingSpinner size="lg" text="Loading Medication Tracker..." /></div>}>
+            <MedicationTracker />
+          </Suspense>
         </div>
       </section>
     );
@@ -231,7 +227,9 @@ const ChatInterface = () => {
               ← Back to Chat
             </Button>
           </div>
-          <EmergencyGuide />
+          <Suspense fallback={<div className="flex justify-center p-12"><LoadingSpinner size="lg" text="Loading Emergency Guide..." /></div>}>
+            <EmergencyGuide />
+          </Suspense>
         </div>
       </section>
     );
@@ -255,7 +253,9 @@ const ChatInterface = () => {
               ← Back to Chat
             </Button>
           </div>
-          <ImageAnalysis onComplete={handleImageComplete} />
+          <Suspense fallback={<div className="flex justify-center p-12"><LoadingSpinner size="lg" text="Loading Image Analysis..." /></div>}>
+            <ImageAnalysis onComplete={handleImageComplete} />
+          </Suspense>
         </div>
       </section>
     );
@@ -279,7 +279,9 @@ const ChatInterface = () => {
               ← Back to Chat
             </Button>
           </div>
-          <HealthDashboard />
+          <Suspense fallback={<div className="flex justify-center p-12"><LoadingSpinner size="lg" text="Loading Health Dashboard..." /></div>}>
+            <HealthDashboard />
+          </Suspense>
         </div>
       </section>
     );
@@ -303,36 +305,19 @@ const ChatInterface = () => {
               ← Back to Chat
             </Button>
           </div>
-          <UserProfile />
+          <Suspense fallback={<div className="flex justify-center p-12"><LoadingSpinner size="lg" text="Loading Profile..." /></div>}>
+            <UserProfile />
+          </Suspense>
         </div>
       </section>
     );
   }
 
-  
-
   return (
     <section id="chat" className="py-0 min-h-screen bg-muted/30">
-      <div className={`mx-auto px-0`}>
-        {false && (
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4 border-healing text-healing">
-              {user ? 'Your Medical Assistant' : 'Live Demo'}
-            </Badge>
-            <h2 className="text-3xl font-bold mb-4">
-              {user ? 'Chat with MEDITALK' : 'Try MEDITALK Now'}
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
-              {user 
-                ? 'Your personal AI medical assistant is ready to help with symptoms, medications, and health questions.'
-                : 'Experience our AI medical assistant with this interactive demo. Sign up for personalized medical guidance.'
-              }
-            </p>
-          </div>
-        )}
-
-        <Card className={`w-full max-w-none rounded-none shadow-2xl border-0 bg-background`}>
-          <div className={`flex flex-col h-[100dvh] md:h-[100vh]`}>
+      <div className="mx-auto px-0">
+        <Card className="w-full max-w-none rounded-none shadow-2xl border-0 bg-background">
+          <div className="flex flex-col h-[100dvh] md:h-[100vh]">
             {/* Chat Header */}
             <div className="p-3 sm:p-6 border-b bg-gradient-to-r from-medical/5 to-healing/5">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -362,15 +347,25 @@ const ChatInterface = () => {
                         {sessions.map((s) => (
                           <div
                             key={s.id}
-                            onClick={async () => { setCurrentSession(s); await loadMessages(s.id); }}
-                            className={`group px-3 py-2 cursor-pointer hover:bg-muted/50 rounded-md flex items-center justify-between ${currentSession?.id === s.id ? 'bg-muted' : ''}`}
+                            onClick={async () => {
+                              setCurrentSession(s);
+                              await loadMessages(s.id);
+                            }}
+                            className={`group px-3 py-2 cursor-pointer hover:bg-muted/50 rounded-md flex items-center justify-between ${
+                              currentSession?.id === s.id ? 'bg-muted' : ''
+                            }`}
                           >
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium">{s.title || 'Untitled Chat'}</p>
-                              <p className="text-xs text-muted-foreground">{new Date(s.updated_at).toLocaleString()}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(s.updated_at).toLocaleString()}
+                              </p>
                             </div>
                             <button
-                              onClick={async (e) => { e.stopPropagation(); await deleteSession(s.id); }}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await deleteSession(s.id);
+                              }}
                               className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                               aria-label="Delete chat"
                             >
@@ -450,47 +445,54 @@ const ChatInterface = () => {
               {displayMessages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex ${
-                    message.sender === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
+                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`flex items-start space-x-3 max-w-[80%] ${
+                    className={`flex items-start space-x-3 max-w-[85%] md:max-w-[75%] ${
                       message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
                     }`}
                   >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      message.sender === 'user' 
-                        ? 'bg-primary text-primary-foreground' 
-                        : 'bg-gradient-to-br from-medical to-healing text-white'
-                    }`}>
-                      {message.sender === 'user' ? 
-                        <User className="h-4 w-4" /> : 
-                        <Bot className="h-4 w-4" />
-                      }
+                    <div
+                      className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        message.sender === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-gradient-to-br from-medical to-healing text-white'
+                      }`}
+                    >
+                      {message.sender === 'user' ? (
+                        <User className="h-3 w-3 sm:h-4 sm:w-4" />
+                      ) : (
+                        <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
+                      )}
                     </div>
                     <div
-                      className={`rounded-2xl px-4 py-3 ${
+                      className={`rounded-2xl px-3 sm:px-4 py-2 sm:py-3 ${
                         message.sender === 'user'
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted border border-border'
                       }`}
                     >
-                      {Array.isArray(message.attachments) && message.attachments.length > 0 && (
-                        <div className="space-y-2 mb-2">
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mb-2 space-y-2">
                           {message.attachments.map((att, idx) => (
-                            <img key={idx} src={att} alt={`attachment-${idx}`} className="rounded-lg max-h-64 object-contain" />
+                            <img
+                              key={idx}
+                              src={att}
+                              alt="Attachment"
+                              className="max-h-60 rounded-lg border object-cover"
+                            />
                           ))}
                         </div>
                       )}
-                      {message.content && (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                      )}
-                      <p className={`text-xs mt-2 opacity-70 ${
-                        message.sender === 'user' ? 'text-primary-foreground' : 'text-muted-foreground'
-                      }`}>
-                        {new Date(message.created_at).toLocaleTimeString()}
+                      <p className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                        {message.content}
                       </p>
+                      <span className="text-[10px] opacity-70 mt-1 block">
+                        {new Date(message.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -519,114 +521,13 @@ const ChatInterface = () => {
             </div>
 
             {/* Input Area */}
-            <div className="p-3 sm:p-6 border-t bg-background">
-              {user && (
-                <div className="flex items-center gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-                    onClick={() => handleQuickAction('dashboard')}
-                  >
-                    Dashboard
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-medical border-medical hover:bg-medical hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-                    onClick={() => handleQuickAction('symptoms')}
-                  >
-                    Symptoms
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-healing border-healing hover:bg-healing hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-                    onClick={() => handleQuickAction('medications')}
-                  >
-                    Meds
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-primary border-primary hover:bg-primary hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-                    onClick={() => handleQuickAction('image')}
-                  >
-                    Image
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-emergency border-emergency hover:bg-emergency hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-                    onClick={() => handleQuickAction('emergency')}
-                  >
-                    Emergency
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-muted-foreground border-muted-foreground hover:bg-muted-foreground hover:text-white whitespace-nowrap text-xs sm:text-sm flex-shrink-0"
-                    onClick={() => handleQuickAction('profile')}
-                  >
-                    Profile
-                  </Button>
-                </div>
-              )}
-              
-              <div className="flex items-center gap-2">
-                <div className="flex-1 relative">
-                  <Input
-                    placeholder={user ? "Describe symptoms or ask a question..." : "Sign in to chat..."}
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    className="pr-16 sm:pr-20 border-medical/20 focus:border-medical text-sm"
-                    disabled={!user}
-                  />
-                  {user && (
-                    <div className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                      <VoiceInput onTranscript={handleVoiceTranscript} />
-                      <Button variant="outline" size="icon" className="h-7 w-7 sm:h-8 sm:w-8" onClick={handleImageButtonClick}>
-                        <Camera className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleInlineImageSelected}
-                  />
-                </div>
-                <Button 
-                  onClick={handleSendMessage}
-                  variant="medical"
-                  size="sm"
-                  className="px-3 sm:px-6"
-                  disabled={!user || !inputMessage.trim() || loading}
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              {/* Medical Disclaimer */}
-              <div className="flex items-start gap-2 mt-3 sm:mt-4 p-2 sm:p-3 bg-warning/5 border border-warning/20 rounded-lg">
-                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-warning mt-0.5 flex-shrink-0" />
-                <div className="text-[10px] sm:text-xs text-muted-foreground">
-                  <p className="font-medium text-warning mb-0.5 sm:mb-1">Medical Disclaimer</p>
-                  <p className="leading-relaxed">
-                    MEDITALK provides general health info for educational purposes only. 
-                    Always consult qualified healthcare providers for medical concerns.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <ChatInputBar
+              user={user}
+              loading={loading}
+              onSendMessage={handleSendMessage}
+              onSendImage={handleSendImage}
+              onQuickAction={handleQuickAction}
+            />
           </div>
         </Card>
       </div>

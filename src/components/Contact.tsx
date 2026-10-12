@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +22,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 const Contact = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -358,7 +360,7 @@ const Contact = () => {
                   Don't wait – get instant access to AI-powered medical guidance. 
                   Start your free consultation today.
                 </p>
-                <Button variant="secondary" size="lg" onClick={() => window.location.href = '/dashboard'}>
+                <Button variant="secondary" size="lg" onClick={() => navigate('/dashboard')}>
                   <MessageCircle className="w-5 h-5 mr-2" />
                   Start Free Consultation
                 </Button>

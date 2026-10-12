@@ -49,6 +49,7 @@ const HealthDashboard: React.FC = () => {
     if (user) {
       loadDashboardData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadDashboardData = async () => {
